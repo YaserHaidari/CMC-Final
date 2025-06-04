@@ -29,7 +29,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile" // This will look for a file at app/(tabs)/settings.tsx
         options={{
-          title: 'profile',
+          title: 'Profile',
           tabBarIcon: ({ color }) => <FontAwesome size={28} name='user' color={color} />, 
         }}
       />
