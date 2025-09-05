@@ -20,7 +20,7 @@ debugLog('Debug logging is working');
 
 interface Mentee {
   menteeid: number;
-  userid: string;
+  auth_userid: string;
   bio?: string;
   skills: string[];
   target_roles: string[];
@@ -34,6 +34,7 @@ interface Mentee {
 }
 
 interface MentorMatch {
+  experience_gap_appropriate: any;
   mentorid: number;
   userid: string;
   mentor_name: string;
@@ -110,7 +111,7 @@ function CyberMatchScreen() {
         const mockMentees: Mentee[] = [
           {
             menteeid: 1,
-            userid: DEMO_MENTEE_IDS[0],
+            auth_userid: DEMO_MENTEE_IDS[0],
             bio: "Aspiring cybersecurity professional",
             skills: ["Network Security", "Ethical Hacking", "Risk Assessment"],
             target_roles: ["Security Analyst", "Penetration Tester"],
@@ -131,7 +132,7 @@ function CyberMatchScreen() {
         .from('mentees')
         .select(`
           menteeid,
-          userid,
+          auth_userid,
           bio,
           skills,
           target_roles,
@@ -212,7 +213,7 @@ function CyberMatchScreen() {
       setError(null);
       
       const { data, error } = await supabase.rpc('get_matches', {
-        mentee_userid: currentMentee.userid
+        mentee_userid: currentMentee.auth_userid
       });
       
       debugLog('🔍 RPC get_matches result:', { data, error });
@@ -299,7 +300,7 @@ function CyberMatchScreen() {
       const { error } = await supabase
         .from('mentorship_requests')
         .insert({
-          menteeid: currentMentee?.userid,
+          menteeid: currentMentee?.auth_userid,
           mentorid: mentorId,
           status: 'Pending',
           message: 'Hi, I would like to request mentorship based on our compatibility match.',
@@ -348,7 +349,7 @@ function CyberMatchScreen() {
     debugLog('🔄 State updated:', {
       matching,
       loading,
-      currentMentee: currentMentee?.userid,
+      currentMentee: currentMentee?.auth_userid,
       mentorMatchesCount: mentorMatches.length,
       currentMatchIndex,
       error
@@ -415,7 +416,7 @@ function CyberMatchScreen() {
             {DEBUG && (
               <View style={{ width: '100%', backgroundColor: '#F3F4F6', padding: 12, borderRadius: 8, marginBottom: 16 }}>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>Debug Info:</Text>
-                <Text style={{ fontSize: 10 }}>Current Mentee: {currentMentee?.userid}</Text>
+                <Text style={{ fontSize: 10 }}>Current Mentee: {currentMentee?.auth_userid}</Text>
                 <Text style={{ fontSize: 10 }}>Available Mentees: {availableMentees.length}</Text>
                 <Text style={{ fontSize: 10 }}>Index: {currentDemoMenteeIndex}</Text>
                 {error && <Text style={{ fontSize: 10, color: '#DC2626' }}>Error: {error}</Text>}
