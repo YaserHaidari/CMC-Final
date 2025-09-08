@@ -1,5 +1,4 @@
-// services/testimonialService.ts
-import { supabase } from '../supabase/initiliaze';
+import { supabase } from '../app/supabase/initiliaze';
 
 export interface Testimonial {
   id: string;
