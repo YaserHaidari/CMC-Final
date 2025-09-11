@@ -10,10 +10,12 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { TestimonialCard } from '../components/testimonials/TestimonialCard';
 import {
-  testimonialService,
+  // testimonialService,
   Testimonial,
   TestimonialStats
 } from '../services/testimonialService';
+import { testimonialServiceMock as testimonialService } from '../services/testimonialServiceMock';
+import { mockMentors } from '../services/testimonialMockData';
 
 const RatingBar = ({ rating, count, total }: { rating: number; count: number; total: number }) => {
   const percentage = total > 0 ? (count / total) * 100 : 0;
@@ -50,11 +52,7 @@ const StarRating = ({ rating }: { rating: number }) => {
 };
 
 export default function TestimonialsScreen() {
-  const { mentorId, mentorName } = useLocalSearchParams<{
-    mentorId: string;
-    mentorName?: string;
-  }>();
-  
+  const [selectedMentorId, setSelectedMentorId] = useState("101"); // Default mentor
   const [stats, setStats] = useState<TestimonialStats | null>(null);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,11 +64,11 @@ export default function TestimonialsScreen() {
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
-    if (mentorId) {
+    if (selectedMentorId) {
       loadInitialData();
       checkCanWriteTestimonial();
     }
-  }, [mentorId]);
+  }, [selectedMentorId]); // Changed from mentorId to selectedMentorId
 
   const loadInitialData = async () => {
     try {
@@ -86,9 +84,9 @@ export default function TestimonialsScreen() {
       const offset = reset ? 0 : testimonials.length;
       
       const [statsData, testimonialsData] = await Promise.all([
-        testimonialService.getMentorStats(parseInt(mentorId!)),
+        testimonialService.getMentorStats(parseInt(selectedMentorId)),
         testimonialService.getMentorTestimonials(
-          parseInt(mentorId!),
+          parseInt(selectedMentorId),
           ITEMS_PER_PAGE,
           offset
         )
@@ -114,7 +112,7 @@ export default function TestimonialsScreen() {
       const menteeId = await testimonialService.getCurrentMenteeId();
       if (menteeId) {
         const canWriteReview = await testimonialService.canWriteTestimonial(
-          parseInt(mentorId!),
+          parseInt(selectedMentorId),
           menteeId
         );
         setCanWrite(canWriteReview);
@@ -140,9 +138,37 @@ export default function TestimonialsScreen() {
   const handleWriteTestimonial = () => {
     router.push({
       pathname: '/writetestimonial',
-      params: { mentorId: mentorId! }
+      params: { mentorId: selectedMentorId! }
     });
   };
+
+  const MentorSelector = () => (
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false}
+      className="mb-4"
+    >
+      {mockMentors.map((mentor) => (
+        <TouchableOpacity
+          key={mentor.id}
+          onPress={() => setSelectedMentorId(mentor.id)}
+          className={`mr-3 px-4 py-2 rounded-full border ${
+            selectedMentorId === mentor.id
+              ? 'bg-blue-600 border-blue-600'
+              : 'bg-white border-gray-300'
+          }`}
+        >
+          <Text
+            className={`font-medium ${
+              selectedMentorId === mentor.id ? 'text-white' : 'text-gray-700'
+            }`}
+          >
+            {mentor.name}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
 
   if (loading) {
     return (
@@ -168,7 +194,7 @@ export default function TestimonialsScreen() {
               No Reviews Yet
             </Text>
             <Text className="text-gray-600 text-center mb-6 leading-relaxed">
-              {mentorName ? `${mentorName} hasn't` : "This mentor hasn't"} received any reviews yet. 
+              {selectedMentorId ? `${selectedMentorId} hasn't` : "This mentor hasn't"} received any reviews yet. 
               Be the first to share your experience!
             </Text>
             
@@ -196,12 +222,20 @@ export default function TestimonialsScreen() {
       }
     >
       <View className="p-4">
+        {/* Add Mentor Selector at the top */}
+        <View className="mb-4">
+          <Text className="text-lg font-semibold text-gray-900 mb-2 px-1">
+            Select a Mentor
+          </Text>
+          <MentorSelector />
+        </View>
+
         {/* Header Card */}
         <View className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-100">
           <View className="flex-row items-center justify-between mb-6">
             <View>
               <Text className="text-2xl font-bold text-gray-900 mb-2">
-                {mentorName ? `${mentorName}'s Reviews` : 'Reviews'}
+                {selectedMentorId ? `${selectedMentorId}'s Reviews` : 'Reviews'}
               </Text>
               <View className="flex-row items-center space-x-4">
                 <StarRating rating={stats.average_rating} />
