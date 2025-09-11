@@ -76,6 +76,8 @@ function RootLayout() {
         <Stack.Screen name="findmentors" options={{ title: "Find Mentors" }} />
         <Stack.Screen name="cybermatch" options={{ title: "Cyber Match" }} />
         <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
+        <Stack.Screen name="writetestimonials" options={{ title: "Write Testimonials" }} />
+        <Stack.Screen name="testimonials" options={{ title: "Testimonials" }} />
       </Stack>
     </GestureHandlerRootView>
   );

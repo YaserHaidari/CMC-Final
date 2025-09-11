@@ -4,6 +4,8 @@ import { View, Text } from "react-native";
 import _layout from "@/app/_layout";
 import home from "@/app/(tabs)/home";
 import findmentors from "@/app/findmentors";
+import WriteTestimonialScreen from '../writetestimonial';
+import TestimonialsScreen from '../testimonials';
 import settings from "@/app/settings";
 import CyberMatchScreen from '../cybermatch';
 
@@ -42,6 +44,8 @@ export default function RootLayout() {
                 <Drawer.Screen name="Home Page" component={home} />
                 <Drawer.Screen name="Cyber Match" component={CyberMatchScreen} />
                 <Drawer.Screen name="Settings" component={settings} />
+                <Drawer.Screen name="Write Testimonials" component={WriteTestimonialScreen} />
+                <Drawer.Screen name="Testimonials" component={TestimonialsScreen} />
             </Drawer.Navigator>
         </GestureHandlerRootView>
     );
