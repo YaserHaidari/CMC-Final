@@ -1,14 +1,51 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {View,Text,Image,ScrollView,TouchableOpacity,TextInput,StyleSheet,RefreshControl,KeyboardAvoidingView,Platform,TouchableWithoutFeedback,Keyboard,Alert,} from "react-native";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Alert,
+} from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { MaterialIcons } from "@expo/vector-icons";
 import { initializeApp } from "firebase/app";
-import { getFirestore,collection,query,orderBy,onSnapshot,doc,updateDoc,deleteDoc,writeBatch,} from "firebase/firestore";
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+  writeBatch,
+} from "firebase/firestore";
 import { firebaseConfig } from "./firebase/firebase_initialize";
+import * as Notifications from "expo-notifications";
+import { useRouter } from "expo-router";
 
 // Initialize Firebase app
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// Configure foreground notification behavior
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: false, // deprecated
+    shouldShowBanner: true, 
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowList: false,
+  }),
+});
 
 interface Notification {
   id: string;
@@ -29,7 +66,38 @@ const NotificationsScreen = () => {
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [allSelected, setAllSelected] = useState(false);
 
-  // Load notifications from Firestore and listen for updates
+  const firstLoadRef = useRef(true); 
+  const router = useRouter();
+
+  // Listen to notification clicks
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen;
+      const allowedScreens = [
+        "notifications",
+        "chat",
+        "profile",
+        "updateProfile",
+        "register",
+        "home",
+        "login",
+        "pin",
+        "settings",
+        "findmentors",
+        "cybermatch",
+      ];
+
+      if (typeof screen === "string" && allowedScreens.includes(screen)) {
+        router.push(`/${screen}` as `/notifications` | `/chat` | `/profile` | `/updateProfile` | `/register` | `/home` | `/login` | `/pin` | `/settings` | `/findmentors` | `/cybermatch`);
+      } else {
+        console.warn(`Invalid screen: ${screen}`);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  // Load notifications from Firestore
   useEffect(() => {
     const notificationsRef = collection(db, "notifications");
     const q = query(notificationsRef, orderBy("timestamp", "desc"));
@@ -50,16 +118,31 @@ const NotificationsScreen = () => {
       });
       setNotifications(notifList);
       setAllSelected(false);
+
+      // Schedule banners for newly added notifications only
+      querySnapshot.docChanges().forEach((change) => {
+        if (change.type === "added" && !firstLoadRef.current) {
+          const data = change.doc.data();
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: data.title,
+              body: data.description,
+              data: { screen: "notifications" },
+            },
+            trigger: null,
+          });
+        }
+      });
+
+      firstLoadRef.current = false;
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Toggle read/unread and update Firestore
   const toggleReadStatus = async (id: string) => {
     const notification = notifications.find((n) => n.id === id);
     if (!notification) return;
-
     try {
       const notifDocRef = doc(db, "notifications", id);
       await updateDoc(notifDocRef, { read: !notification.read });
@@ -69,11 +152,9 @@ const NotificationsScreen = () => {
     }
   };
 
-  // Delete a notification and update Firestore
   const deleteNotification = async (id: string) => {
     const deleted = notifications.find((n) => n.id === id);
     if (!deleted) return;
-
     try {
       await deleteDoc(doc(db, "notifications", id));
       setDeletedNotification(deleted);
@@ -85,10 +166,8 @@ const NotificationsScreen = () => {
     }
   };
 
-  // Undo delete (restore locally only - no Firestore restore)
   const undoDelete = () => {
     if (deletedNotification) {
-      // We can't restore in Firestore without a backend, so just show alert
       Alert.alert(
         "Undo not supported",
         "Undo works only locally. To restore a deleted notification, reload data from server."
@@ -97,20 +176,19 @@ const NotificationsScreen = () => {
     }
   };
 
-  // Search input handler
   const handleSearchChange = (text: string) => setSearchQuery(text);
-
-  // Select all / deselect all
   const handleSelectAll = () => {
     const newSelected = !allSelected;
     setAllSelected(newSelected);
     setNotifications((prev) => prev.map((n) => ({ ...n, selected: newSelected })));
   };
-
-  // Toggle dropdown menu
   const openDropdown = () => setDropdownVisible((prev) => !prev);
+  const cancelSelection = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, selected: false })));
+    setDropdownVisible(false);
+    setAllSelected(false);
+  };
 
-  // Bulk mark selected notifications as read/unread
   const markAllAs = async (status: "read" | "unread") => {
     const batch = writeBatch(db);
     notifications.forEach((n) => {
@@ -119,7 +197,6 @@ const NotificationsScreen = () => {
         batch.update(notifDocRef, { read: status === "read" });
       }
     });
-
     try {
       await batch.commit();
       setDropdownVisible(false);
@@ -133,29 +210,18 @@ const NotificationsScreen = () => {
     }
   };
 
-  // Cancel selection
-  const cancelSelection = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, selected: false })));
-    setDropdownVisible(false);
-    setAllSelected(false);
-  };
-
-  // Bulk delete selected notifications
   const bulkDelete = async () => {
     const toDelete = notifications.filter((n) => n.selected);
     if (toDelete.length === 0) return;
-
     const batch = writeBatch(db);
     toDelete.forEach((n) => {
       const notifDocRef = doc(db, "notifications", n.id);
       batch.delete(notifDocRef);
     });
-
     try {
       await batch.commit();
       setDropdownVisible(false);
       setAllSelected(false);
-      // Disable undo after bulk delete
       setDeletedNotification(null);
     } catch (error) {
       console.error("Error deleting notifications:", error);
@@ -163,24 +229,20 @@ const NotificationsScreen = () => {
     }
   };
 
-  // Filter notifications by search query
   const filteredNotifications = notifications.filter(
     (n) =>
       n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       n.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
   const unreadNotifications = filteredNotifications.filter((n) => !n.read);
   const readNotifications = filteredNotifications.filter((n) => n.read);
 
-  // Swipe delete button UI
   const renderRightActions = (id: string) => (
     <TouchableOpacity style={styles.deleteButton} onPress={() => deleteNotification(id)}>
       <Text style={styles.deleteText}>DELETE</Text>
     </TouchableOpacity>
   );
 
-  // Single notification item UI
   const renderNotificationItem = (item: Notification, isRead: boolean) => (
     <TouchableOpacity
       key={item.id}
@@ -197,11 +259,7 @@ const NotificationsScreen = () => {
             styles.notificationContainer,
             item.selected && styles.selectedContainer,
             {
-              backgroundColor: item.selected
-                ? "#e2f0fb"
-                : isRead
-                ? "#f0f0f0"
-                : "#ffffff",
+              backgroundColor: item.selected ? "#e2f0fb" : isRead ? "#f0f0f0" : "#ffffff",
             },
           ]}
         >
@@ -225,19 +283,21 @@ const NotificationsScreen = () => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Force reload notifications (simulate refresh)
-    // Actually onSnapshot updates live so no extra action needed
     setTimeout(() => setRefreshing(false), 1500);
   }, []);
 
   return (
     <TouchableWithoutFeedback onPress={() => dropdownVisible && setDropdownVisible(false)}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
         <ScrollView
           style={{ backgroundColor: "#f5f5f5" }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Search & dropdown UI */}
           <View style={styles.searchContainer}>
             <View style={styles.searchBar}>
               <TextInput
@@ -248,7 +308,6 @@ const NotificationsScreen = () => {
                 onChangeText={handleSearchChange}
               />
             </View>
-
             <TouchableOpacity style={styles.checkboxContainer} onPress={handleSelectAll}>
               <MaterialIcons
                 name={allSelected ? "check-box" : "check-box-outline-blank"}
@@ -256,7 +315,6 @@ const NotificationsScreen = () => {
                 color="#444"
               />
             </TouchableOpacity>
-
             <TouchableOpacity onPress={openDropdown}>
               <MaterialIcons name="arrow-drop-down" size={30} color="#444" />
             </TouchableOpacity>
@@ -308,132 +366,28 @@ const NotificationsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
-    marginVertical: 8,
-  },
-  searchBar: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  searchInput: {
-    fontSize: 16,
-    color: "#222",
-  },
-  checkboxContainer: {
-    marginHorizontal: 8,
-  },
-  dropdownMenu: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  dropdownItem: {
-    padding: 12,
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: "#444",
-  },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginHorizontal: 16,
-    marginVertical: 8,
-  },
-  notificationContainer: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 12,
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 8,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  selectedContainer: {
-    borderWidth: 2,
-    borderColor: "#1e90ff",
-  },
-  unreadDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#007bff",
-    marginTop: 12,
-    marginRight: 8,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#222",
-  },
-  description: {
-    fontSize: 14,
-    color: "#555",
-  },
-  readTitle: {
-    color: "#888",
-  },
-  readDescription: {
-    color: "#888",
-  },
-  deleteButton: {
-    backgroundColor: "#ff4d4d",
-    justifyContent: "center",
-    alignItems: "center",
-    width: 80,
-    borderRadius: 8,
-    marginVertical: 4,
-  },
-  deleteText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#999",
-    marginVertical: 8,
-  },
-  snackbar: {
-    position: "absolute",
-    bottom: 20,
-    left: 16,
-    right: 16,
-    backgroundColor: "#333",
-    padding: 16,
-    borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    elevation: 6,
-  },
-  snackbarText: {
-    color: "#fff",
-    fontSize: 16,
-  },
-  undoText: {
-    color: "#1e90ff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  searchContainer: { flexDirection: "row", alignItems: "center", marginHorizontal: 16, marginVertical: 8 },
+  searchBar: { flex: 1, backgroundColor: "#fff", borderRadius: 24, paddingHorizontal: 16, paddingVertical: 8 },
+  searchInput: { fontSize: 16, color: "#222" },
+  checkboxContainer: { marginHorizontal: 8 },
+  dropdownMenu: { backgroundColor: "#fff", borderRadius: 8, marginHorizontal: 16, marginBottom: 8, elevation: 5, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4 },
+  dropdownItem: { padding: 12 },
+  dropdownText: { fontSize: 16, color: "#444" },
+  sectionHeader: { fontSize: 18, fontWeight: "bold", marginHorizontal: 16, marginVertical: 8 },
+  notificationContainer: { flexDirection: "row", alignItems: "flex-start", padding: 12, marginHorizontal: 16, marginVertical: 4, borderRadius: 8, elevation: 1, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 2 },
+  selectedContainer: { borderWidth: 2, borderColor: "#1e90ff" },
+  unreadDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#007bff", marginTop: 12, marginRight: 8 },
+  avatar: { width: 48, height: 48, borderRadius: 24 },
+  title: { fontSize: 16, fontWeight: "bold", color: "#222" },
+  description: { fontSize: 14, color: "#555" },
+  readTitle: { color: "#888" },
+  readDescription: { color: "#888" },
+  deleteButton: { backgroundColor: "#ff4d4d", justifyContent: "center", alignItems: "center", width: 80, borderRadius: 8, marginVertical: 4 },
+  deleteText: { color: "#fff", fontWeight: "bold" },
+  emptyText: { textAlign: "center", color: "#999", marginVertical: 8 },
+  snackbar: { position: "absolute", bottom: 20, left: 16, right: 16, backgroundColor: "#333", padding: 16, borderRadius: 8, flexDirection: "row", justifyContent: "space-between", alignItems: "center", elevation: 6 },
+  snackbarText: { color: "#fff", fontSize: 16 },
+  undoText: { color: "#1e90ff", fontWeight: "bold", fontSize: 16 },
 });
 
 export default NotificationsScreen;

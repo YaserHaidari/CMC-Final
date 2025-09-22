@@ -2,6 +2,10 @@ import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import "./global.css";
 import { useEffect } from "react";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from "expo-notifications";
+import { useRouter } from "expo-router";
+import { MenuProvider } from 'react-native-popup-menu'; 
 
 function RootLayout() {
   const [loaded, error] = useFonts({
@@ -19,39 +23,64 @@ function RootLayout() {
     "Urbanist-BoldItalic": require("../assets/fonts/Urbanist-BoldItalic.ttf"),
   });
 
+  const router = useRouter();
+
   useEffect(() => {
-    if (error) {
-      console.error("Error loading fonts.", error);
-    }
+    if (error) console.error("Error loading fonts.", error);
   }, [loaded, error]);
 
-  if (!loaded && !error) {
-    return null; // Or a loading indicator
-  }
+  // Handle notification click anywhere in the app
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen as string | undefined;
+      const allowedScreens = [
+        "accessDenied",
+        "chat",
+        "cybermatch",
+        "findmentors",
+        "home",
+        "login",
+        "notifications",
+        "pin",
+        "profile",
+        "register",
+        "settings",
+      ];
+      if (typeof screen === "string" && allowedScreens.includes(screen)) {
+        router.push(`/${screen}` as `/accessDenied` | `/chat` | `/cybermatch` | `/findmentors` | `/home` | `/login` | `/notifications` | `/pin` | `/profile` | `/register` | `/settings`);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  if (!loaded && !error) return null;
 
   return (
-    <Stack>
-      {/* This screen will render the TabLayout from app/(tabs)/_layout.tsx */}
-      <Stack.Screen
-        name="(tabs)"
-        options={{
-          headerBackVisible: false, // No back button on tabs
-          headerTitle: '',          // No static title, let tabs set their own
-        }}
-      />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <MenuProvider>
+        <Stack>
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerBackVisible: false,
+              headerTitle: '',
+            }}
+          />
 
-      {/* Other stack screens outside the tab navigator */}
-      <Stack.Screen name="register" options={{ title: "Register" }} />
-      <Stack.Screen name="home" options={{ title: "Home" }} />
-      <Stack.Screen name="login" options={{ title: "Login" }} />
-      <Stack.Screen name="pin" options={{ title: "Enter PIN" }} />
-      <Stack.Screen name="profile" options={{ title: "Profile" }} />
-      <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
-      <Stack.Screen name="settings" options={{ title: "Settings" }} />
-      <Stack.Screen name="findmentors" options={{ title: "Find Mentors" }} />
-      <Stack.Screen name="cybermatch" options={{ title: "Cyber Match" }} />
-      <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
-    </Stack>
+          <Stack.Screen name="register" options={{ title: "Register" }} />
+          <Stack.Screen name="home" options={{ title: "Home" }} />
+          <Stack.Screen name="login" options={{ title: "Login" }} />
+          <Stack.Screen name="pin" options={{ title: "Enter PIN" }} />
+          <Stack.Screen name="profile" options={{ title: "Profile" }} />
+          <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
+          <Stack.Screen name="settings" options={{ title: "Settings" }} />
+          <Stack.Screen name="findmentors" options={{ title: "Find Mentors" }} />
+          <Stack.Screen name="cybermatch" options={{ title: "Cyber Match" }} />
+          <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
+        </Stack>
+      </MenuProvider>
+    </GestureHandlerRootView>
   );
 }
 

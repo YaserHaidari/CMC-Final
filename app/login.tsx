@@ -132,8 +132,14 @@ export default function LoginScreen() { // Changed component name to LoginScreen
                             Don't have an account? <Text className="text-primary font-semibold">Register</Text>
                         </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity onPress={()=> router.replace ("/pin")} disabled={isLoading} className="mt-4">
+                        <Text className="text-base font-Menu text-center text-gray-500">
+                            Login with <Text className="text-primary font-semibold">PIN</Text>
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
+        
     );
 }
