@@ -64,7 +64,7 @@ export default function HomeScreen() {
         const user = await signInWithEmailAndPassword(auth, email, pwd);
         if (user.user) {
           console.log("User signed in:", user.user.email);
-          router.replace("/home");
+          router.replace("/(drawer)");
         } else {
           router.replace("/login");
         }

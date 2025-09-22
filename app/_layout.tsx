@@ -61,7 +61,7 @@ function RootLayout() {
       <MenuProvider>
         <Stack>
           <Stack.Screen
-            name="(tabs)"
+            name="(drawer)"
             options={{
               headerBackVisible: false,
               headerTitle: '',
@@ -69,14 +69,8 @@ function RootLayout() {
           />
 
           <Stack.Screen name="register" options={{ title: "Register" }} />
-          <Stack.Screen name="home" options={{ title: "Home" }} />
           <Stack.Screen name="login" options={{ title: "Login" }} />
           <Stack.Screen name="pin" options={{ title: "Enter PIN" }} />
-          <Stack.Screen name="profile" options={{ title: "Profile" }} />
-          <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
-          <Stack.Screen name="settings" options={{ title: "Settings" }} />
-          <Stack.Screen name="findmentors" options={{ title: "Find Mentors" }} />
-          <Stack.Screen name="cybermatch" options={{ title: "Cyber Match" }} />
           <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
         </Stack>
       </MenuProvider>

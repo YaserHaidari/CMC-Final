@@ -172,7 +172,7 @@ function NotificationsScreen() {
           <View key={request.id} className="bg-white shadow-md rounded-lg mx-4 mb-4 p-4 border border-gray-200">
             <View className="flex-row items-center">
               <Image
-                source={require('../../assets/images/icon.png')}
+                source={require('../../../assets/images/icon.png')}
                 style={styles.avatar}
                 className="rounded-full"
               />

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { useRoute } from "@react-navigation/native";
+import { useLocalSearchParams } from "expo-router";
 import { supabase } from "@/lib/supabase/initiliaze";
 import Chat from "./chat";
 
@@ -10,8 +10,7 @@ type RouteParams = {
 };
 
 export default function ChatGate() {
-  const route = useRoute();
-  const { userId: userIdStr, userName } = route.params as RouteParams;
+  const { userId: userIdStr, userName } = useLocalSearchParams() as RouteParams;
 
   const [blocked, setBlocked] = useState<boolean | null>(null);
   const [currentAdminId, setCurrentAdminId] = useState<number | null>(null);

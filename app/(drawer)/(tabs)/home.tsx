@@ -30,7 +30,7 @@ function HomeScreen() {
     const userCredentials = { email: user.email, id: user.id };
     await AsyncStorage.setItem("USERCREDENTIALS", JSON.stringify(userCredentials));
 
-    setWelcomeMessage(user.email || "");
+
     if (user.user_metadata?.avatar_url) {
       setPhotoUrl(user.user_metadata.avatar_url);
     }
@@ -44,7 +44,7 @@ function HomeScreen() {
 
     if (!menteeError && menteeData) {
       setCurrentMenteeId(menteeData.menteeid);
-      setWelcomeMessage(menteeData.name || user.email || "");
+      setWelcomeMessage(menteeData.name);
     } else {
       console.log("User is not registered as a mentee:", menteeError?.message);
     }
