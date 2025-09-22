@@ -1,6 +1,6 @@
 // import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from "react-native";
 // import React, { useState, useEffect } from 'react';
-// import { supabase } from "@/app/supabase/initiliaze";
+// import { supabase } from "@/lib/supabase/initiliaze";
 // import { useRouter } from "expo-router";
 // import SegmentedControl from "@react-native-segmented-control/segmented-control";
 // import * as ImagePicker from "expo-image-picker";
@@ -333,7 +333,7 @@
 
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from "react-native";
 import React, { useState, useEffect } from 'react';
-import { supabase } from "@/app/supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 import { useRouter } from "expo-router";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as ImagePicker from "expo-image-picker";
@@ -341,7 +341,7 @@ import AWS from "aws-sdk";
 import Constants from "expo-constants";
 
 // --- PIN helpers (adjust import path as needed) ---
-import { savePIN, getPIN, deletePIN } from './storage';
+import { savePIN, getPIN, deletePIN } from '@/lib/storage';
 
 interface User {
     id: number;

@@ -1,6 +1,6 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import React, { useEffect, useState } from "react";
-import { supabase } from "@/app/supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 import { useRouter } from "expo-router";
 import AntDesign from '@expo/vector-icons/AntDesign';
 import Fontisto from '@expo/vector-icons/Fontisto';

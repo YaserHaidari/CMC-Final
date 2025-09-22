@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
-import { supabase } from "../supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 import { router } from "expo-router";
 
 type Friend = {

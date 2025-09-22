@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, Image } from "react-native";
-import { firebaseConfig } from "./firebase/firebase_initialize";
+import { firebaseConfig } from "@/lib/firebase/firebase_initialize";
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { router, usePathname } from "expo-router";

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, TextInput, ScrollView, Image, TouchableOpacity } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { supabase } from "@/app/supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Feather from "@expo/vector-icons/Feather";
 import CustomHeader from "@/components/CustomHeader";

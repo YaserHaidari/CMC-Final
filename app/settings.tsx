@@ -4,7 +4,7 @@ import Fontisto from '@expo/vector-icons/Fontisto';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import CustomHeader from "@/components/CustomHeader";
-import { savePIN, getPIN, deletePIN } from './storage';
+import { savePIN, getPIN, deletePIN } from '@/lib/storage';
 import { useState, useEffect } from "react";
 
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getPIN } from './storage';
+import { getPIN } from '@/lib/storage';
 import {
     View,
     Text,
@@ -11,7 +11,7 @@ import {
     ActivityIndicator // Added for loading state
 } from "react-native";
 // Adjust the import path if you moved loginUser.js
-import loginUser from './firebase/loginUser'; // Or your new path for the Supabase-only login function
+import loginUser from '@/lib/firebase/loginUser'; // Or your new path for the Supabase-only login function
 import { useRouter } from "expo-router";
 
 export default function LoginScreen() { // Changed component name to LoginScreen for clarity
@@ -42,7 +42,7 @@ export default function LoginScreen() { // Changed component name to LoginScreen
                 router.replace("/pin");
             } else {
                 // Existing user without PIN
-                router.replace("/home");
+                router.replace("/(tabs)/home");
             }
         } else {
             setMessage(result as string);

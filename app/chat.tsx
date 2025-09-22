@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { supabase } from "../app/supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 
 type Message = {
   id: number;

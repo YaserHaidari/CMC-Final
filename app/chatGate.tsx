@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRoute } from "@react-navigation/native";
-import { supabase } from "../app/supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 import Chat from "./chat";
 
 type RouteParams = {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, Image, ScrollView, Button, Alert, StyleSheet } from "react-native";
-import { supabase } from "@/app/supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 
 interface MentorshipRequest {
   id: string;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from "react-native";
-import { supabase } from "./supabase/initiliaze";
+import { supabase } from "@/lib/supabase/initiliaze";
 
 // Add these debugging utilities at the top
 const DEBUG = true; // Set to false in production
