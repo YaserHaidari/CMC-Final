@@ -7,137 +7,84 @@ type Friend = {
   id: number;
   name: string;
   email: string;
-  role: "mentor" | "mentee";
-  adminId: number | null;
+  user_type: string;
+  auth_id: string;
 };
 
 export default function Friends() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [currentAdminId, setCurrentAdminId] = useState<number | null>(null);
-  const [blockedIds, setBlockedIds] = useState<number[]>([]);
+  const [currentAuthId, setCurrentAuthId] = useState<string | null>(null);
+  const [blockedIds, setBlockedIds] = useState<string[]>([]);
 
-  // 1️⃣ Get logged-in user's email and adminId
+  // 1️⃣ Get logged-in user's info
   useEffect(() => {
-    async function fetchCurrentAdmin() {
+    async function fetchCurrentUser() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
         setCurrentUserEmail(user.email ?? null);
-
-        // Try to get admin by email
-        let { data: adminRecord, error } = await supabase
-          .from("admin")
-          .select("adminid")
-          .eq("email", user.email)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        // Fallback to mentor_id or Menteeid if email not found
-        if (!adminRecord) {
-          const { data, error: fallbackError } = await supabase
-            .from("admin")
-            .select("adminid")
-            .or(`mentor_id.eq.${user.id},Menteeid.eq.${user.id}`)
-            .maybeSingle();
-
-          if (fallbackError) throw fallbackError;
-          adminRecord = data;
-        }
-
-        setCurrentAdminId(adminRecord?.adminid ?? null);
-        console.log("Current Admin ID:", adminRecord?.adminid);
+        setCurrentAuthId(user.id);
+        console.log("Current Auth ID:", user.id);
       } catch (err: any) {
-        console.error("Error fetching admin:", err);
-        Alert.alert("Error", "Failed to fetch current admin.");
-        setCurrentAdminId(null);
+        console.error("Error fetching user:", err);
+        Alert.alert("Error", "Failed to fetch current user.");
+        setCurrentAuthId(null);
       }
     }
 
-    fetchCurrentAdmin();
+    fetchCurrentUser();
   }, []);
 
-  // 2️⃣ Fetch blocked users
+  // 2️⃣ Fetch blocked users (if blocks table exists and uses auth IDs)
   useEffect(() => {
-    if (!currentAdminId) return;
+    if (!currentAuthId) return;
 
     async function fetchBlocked() {
       try {
         const { data: blocksData, error } = await supabase
           .from("blocks")
-          .select("blockedid")
-          .eq("blockerid", currentAdminId);
+          .select("blocked_auth_id")
+          .eq("blocker_auth_id", currentAuthId);
 
-        if (error) throw error;
+        if (error) {
+          console.log("Blocks table might not exist or have different schema:", error.message);
+          setBlockedIds([]);
+          return;
+        }
 
-        setBlockedIds(blocksData?.map((b: any) => b.blockedid) || []);
+        setBlockedIds(blocksData?.map((b: any) => b.blocked_auth_id) || []);
       } catch (err: any) {
         console.error("Error fetching blocked users:", err);
+        setBlockedIds([]);
       }
     }
 
     fetchBlocked();
-  }, [currentAdminId]);
+  }, [currentAuthId]);
 
-  // 3️⃣ Fetch mentors + mentees
+  // 3️⃣ Fetch all users from users table
   useEffect(() => {
     async function fetchFriends() {
       if (!currentUserEmail) return;
 
       try {
-        const allFriends: Friend[] = [];
+        // Fetch all users except current user
+        const { data: usersData, error: usersError } = await supabase
+          .from("users")
+          .select("id, name, email, user_type")
+          .neq("email", currentUserEmail);
 
-        // --- Fetch mentees ---
-        const { data: menteesData, error: menteesError } = await supabase
-          .from("mentees")
-          .select("menteeid, name, email");
-        if (menteesError) throw menteesError;
+        if (usersError) throw usersError;
 
-        for (let m of menteesData || []) {
-          if (m.email === currentUserEmail) continue;
-
-          // Resolve adminId
-          const { data: adminRecord } = await supabase
-            .from("admin")
-            .select("adminid")
-            .eq("Menteeid", m.menteeid)
-            .limit(1);
-
-          allFriends.push({
-            id: m.menteeid,
-            name: m.name ?? "Unknown Mentee",
-            email: m.email ?? "",
-            role: "mentee",
-            adminId: adminRecord?.[0]?.adminid ?? null,
-          });
-        }
-
-        // --- Fetch mentors ---
-        const { data: mentorsData, error: mentorsError } = await supabase
-          .from("mentors")
-          .select("mentorid, name, email");
-        if (mentorsError) throw mentorsError;
-
-        for (let m of mentorsData || []) {
-          if (m.email === currentUserEmail) continue;
-
-          // Resolve adminId
-          const { data: adminRecord } = await supabase
-            .from("admin")
-            .select("adminid")
-            .eq("mentor_id", m.mentorid)
-            .limit(1);
-
-          allFriends.push({
-            id: m.mentorid,
-            name: m.name ?? "Unknown Mentor",
-            email: m.email ?? "",
-            role: "mentor",
-            adminId: adminRecord?.[0]?.adminid ?? null,
-          });
-        }
+        const allFriends: Friend[] = (usersData || []).map(user => ({
+          id: user.id,
+          name: user.name ?? "Unknown User",
+          email: user.email ?? "",
+          user_type: user.user_type ?? "Student",
+          auth_id: user.id.toString() // Using user ID as auth reference
+        }));
 
         setFriends(allFriends);
       } catch (err: any) {
@@ -151,51 +98,43 @@ export default function Friends() {
 
   // 4️⃣ Handle block/unblock
   async function toggleBlock(friend: Friend) {
-    if (!currentAdminId) {
-      Alert.alert("Error", "Current admin not found.");
-      return;
-    }
-
-    if (!friend.adminId) {
-      Alert.alert("Error", "Could not find adminId for this friend.");
+    if (!currentAuthId) {
+      Alert.alert("Error", "Current user not found.");
       return;
     }
 
     try {
-      const isBlocked = blockedIds.includes(friend.adminId);
+      const isBlocked = blockedIds.includes(friend.auth_id);
 
       if (isBlocked) {
         // Unblock
         await supabase
           .from("blocks")
           .delete()
-          .match({ blockerid: currentAdminId, blockedid: friend.adminId });
-        setBlockedIds((prev) => prev.filter((id) => id !== friend.adminId));
+          .match({ blocker_auth_id: currentAuthId, blocked_auth_id: friend.auth_id });
+        setBlockedIds((prev) => prev.filter((id) => id !== friend.auth_id));
+        Alert.alert("Success", `${friend.name} has been unblocked.`);
       } else {
         // Block
         await supabase.from("blocks").insert([
           {
-            blockerid: currentAdminId,
-            blockedid: friend.adminId,
-            blockedat: new Date().toISOString(),
+            blocker_auth_id: currentAuthId,
+            blocked_auth_id: friend.auth_id,
+            blocked_at: new Date().toISOString(),
           },
         ]);
-        if (friend.adminId !== null) {
-          if (friend.adminId !== null) {
-            setBlockedIds((prev) => friend.adminId !== null ? [...prev, friend.adminId] : prev);
-          }
-        }
+        setBlockedIds((prev) => [...prev, friend.auth_id]);
+        Alert.alert("Success", `${friend.name} has been blocked.`);
       }
     } catch (err: any) {
       console.error("Block error:", err);
-      Alert.alert("Error", "Failed to update block status: " + err.message);
+      Alert.alert("Info", "Block/unblock functionality is not fully configured yet.");
     }
   }
 
   // 5️⃣ Show block/unblock menu dynamically
   function showBlockMenu(friend: Friend) {
-    if (!friend.adminId) return;
-    const isBlocked = blockedIds.includes(friend.adminId);
+    const isBlocked = blockedIds.includes(friend.auth_id);
     Alert.alert(friend.name, isBlocked ? "Unblock this user?" : "Block this user?", [
       { text: "Cancel", style: "cancel" },
       { text: isBlocked ? "Unblock" : "Block", onPress: () => toggleBlock(friend) },
@@ -204,8 +143,7 @@ export default function Friends() {
 
   // 6️⃣ Handle chat tap
   function handleChat(friend: Friend) {
-    if (!friend.adminId) return;
-    if (blockedIds.includes(friend.adminId)) {
+    if (blockedIds.includes(friend.auth_id)) {
       Alert.alert("Blocked", "You cannot chat with this friend until you unblock them.");
       return;
     }
@@ -219,7 +157,7 @@ export default function Friends() {
         <Text style={styles.emptyText}>No friends found.</Text>
       ) : (
         friends.map((friend) => (
-          <View key={`${friend.role}_${friend.id}`} style={styles.card}>
+          <View key={`${friend.user_type}_${friend.id}`} style={styles.card}>
             <TouchableOpacity
               style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
               onPress={() => handleChat(friend)}
@@ -228,6 +166,7 @@ export default function Friends() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{friend.name}</Text>
                 <Text style={styles.email}>{friend.email}</Text>
+                <Text style={styles.userType}>{friend.user_type}</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => showBlockMenu(friend)} style={{ padding: 8 }}>
@@ -272,4 +211,5 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 17, fontWeight: "600", color: "#222" },
   email: { fontSize: 13, color: "#6b7280", marginTop: 2 },
+  userType: { fontSize: 11, color: "#9ca3af", marginTop: 1, fontWeight: "500" },
 });

@@ -2,12 +2,19 @@ import { useEffect, useState } from "react";
 import { View, Text, Image, ScrollView, Button, Alert, StyleSheet } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
 
+interface UserInfo {
+  name: string;
+  email: string;
+}
+
 interface MentorshipRequest {
   id: string;
   created_at: string;
   status: 'pending' | 'accepted' | 'declined';
   student_id: string;
   tutor_id: string;
+  students?: UserInfo;
+  tutors?: UserInfo;
 }
 
 function NotificationsScreen() {
@@ -30,15 +37,16 @@ function NotificationsScreen() {
     }
 
     try {
+      // Get user data from users table to determine role
       const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("id, user_type")
+        .select("user_type")
         .eq("email", session.user.email)
         .single();
 
       console.log("Fetched userData:", userData);
 
-      if (userError || !userData?.id) {
+      if (userError || !userData?.user_type) {
         Alert.alert("Error", "Could not verify your user profile.");
         setIsLoading(false);
         return;
@@ -46,11 +54,13 @@ function NotificationsScreen() {
 
       setRole(userData.user_type);
 
-      // Fix: make user_type check case-insensitive
+      // Use the auth user ID (UUID) for mentorship requests
+      const authUserId = session.user.id;
+
       if (userData.user_type.toLowerCase() === "tutor") {
-        fetchMentorshipRequestsForTutor(userData.id);
+        fetchMentorshipRequestsForTutor(authUserId);
       } else {
-        fetchAcceptedMentorsForStudent(userData.id);
+        fetchAcceptedMentorsForStudent(authUserId);
       }
     } catch (e: any) {
       Alert.alert("Error", "An unexpected error occurred while fetching your profile.");
@@ -59,7 +69,7 @@ function NotificationsScreen() {
   }
 
   // For tutors: show all mentorship requests where you are the tutor
-  async function fetchMentorshipRequestsForTutor(tutorSupabaseId: string) {
+  async function fetchMentorshipRequestsForTutor(tutorAuthId: string) {
     try {
       const { data, error } = await supabase
         .from('request_mentorship')
@@ -68,14 +78,17 @@ function NotificationsScreen() {
           created_at,
           status,
           student_id,
-          tutor_id
+          tutor_id,
+          students:student_id(name, email),
+          tutors:tutor_id(name, email)
         `)
-        .eq('tutor_id', tutorSupabaseId)
+        .eq('tutor_id', tutorAuthId)
         .order('created_at', { ascending: false });
 
-      console.log("Fetched requests:", data);
+      console.log("Fetched tutor requests:", data);
 
       if (error) {
+        console.error("Error fetching tutor requests:", error);
         Alert.alert("Error", `Could not load mentorship requests: ${error.message}`);
         setRequests([]);
       } else if (data) {
@@ -84,6 +97,7 @@ function NotificationsScreen() {
         setRequests([]);
       }
     } catch (e: any) {
+      console.error("Unexpected error fetching tutor requests:", e);
       Alert.alert("Error", "An unexpected error occurred while fetching requests.");
       setRequests([]);
     } finally {
@@ -92,7 +106,7 @@ function NotificationsScreen() {
   }
 
   // For students: show all accepted mentors
-  async function fetchAcceptedMentorsForStudent(studentSupabaseId: string) {
+  async function fetchAcceptedMentorsForStudent(studentAuthId: string) {
     try {
       const { data, error } = await supabase
         .from('request_mentorship')
@@ -101,13 +115,18 @@ function NotificationsScreen() {
           created_at,
           status,
           student_id,
-          tutor_id
+          tutor_id,
+          students:student_id(name, email),
+          tutors:tutor_id(name, email)
         `)
-        .eq('student_id', studentSupabaseId)
+        .eq('student_id', studentAuthId)
         .eq('status', 'accepted')
         .order('created_at', { ascending: false });
 
+      console.log("Fetched student mentors:", data);
+
       if (error) {
+        console.error("Error fetching student mentors:", error);
         Alert.alert("Error", `Could not load accepted mentors: ${error.message}`);
         setRequests([]);
       } else if (data) {
@@ -116,6 +135,7 @@ function NotificationsScreen() {
         setRequests([]);
       }
     } catch (e: any) {
+      console.error("Unexpected error fetching student mentors:", e);
       Alert.alert("Error", "An unexpected error occurred while fetching mentors.");
       setRequests([]);
     } finally {
@@ -179,8 +199,13 @@ function NotificationsScreen() {
               <View className="ml-4 flex-1">
                 <Text style={{ fontFamily: "OpenSans-Bold" }} className="text-base">
                   {role && role.toLowerCase() === "tutor"
-                    ? `Student ID: ${request.student_id}`
-                    : `Mentor ID: ${request.tutor_id}`}
+                    ? `Student: ${request.students?.name || 'Unknown Student'}`
+                    : `Mentor: ${request.tutors?.name || 'Unknown Mentor'}`}
+                </Text>
+                <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-sm text-gray-600 mt-1">
+                  {role && role.toLowerCase() === "tutor"
+                    ? `Email: ${request.students?.email || 'N/A'}`
+                    : `Email: ${request.tutors?.email || 'N/A'}`}
                 </Text>
                 <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-sm text-gray-600 mt-1">
                   {role && role.toLowerCase() === "tutor"

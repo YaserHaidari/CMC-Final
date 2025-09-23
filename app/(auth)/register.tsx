@@ -154,39 +154,9 @@ export default function RegisterScreen() {
     }
   }
 
-  // This function now checks Supabase's email verification status
-  // by attempting to log in or by checking the user object from Supabase after a refresh.
-  // For simplicity, we'll assume if they click this, they believe they've verified.
-  // A more robust check involves trying to get the Supabase session and checking `email_confirmed_at`.
-  async function checkSupabaseEmailVerification() {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    setMessage("Checking verification status...");
-
-    // Attempt to get current Supabase session/user
-    // The user object from Supabase auth will have `email_confirmed_at`
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-        console.error("Error getting session:", sessionError);
-        setMessage("Could not check verification status. Please try logging in.");
-        setIsProcessing(false);
-        return;
-    }
-    
-    if (session?.user?.email_confirmed_at) {
-        setMessage("Email verified! Redirecting to login...");
-        // Wait a bit for the message to be visible before redirecting
-        setTimeout(() => {
-            router.replace("/login"); // Navigate to login, user can now sign in
-        }, 2000);
-    } else if (session?.user) {
-        setMessage("Email not yet verified in Supabase. Please check your inbox or resend the email.");
-    }
-     else {
-        setMessage("Could not confirm verification. Please try logging in or resend the verification email.");
-    }
-    setIsProcessing(false);
+  // Redirect user to login page after they've verified their email
+  async function redirectTologin() {
+    router.replace("/login");
   }
 
   async function resendVerificationEmail() {
@@ -247,7 +217,7 @@ export default function RegisterScreen() {
             backgroundColor="#000000"
             style={{ height: 40, borderRadius: 20 }}
             tintColor="#3B82F6"
-            values={["Student", "Tutor"]}
+            values={["Mentee", "Mentor"]}
             selectedIndex={userType}
             onChange={(event) =>
               setUsertype(event.nativeEvent.selectedSegmentIndex)
@@ -328,7 +298,7 @@ export default function RegisterScreen() {
           ) : (
             <View>
               <TouchableOpacity
-                onPress={checkSupabaseEmailVerification}
+                onPress={redirectTologin}
                 disabled={isProcessing}
                 className={`flex-row bg-green-500 px-4 rounded-lg h-14 items-center justify-center mb-4 ${isProcessing ? "opacity-50" : ""}`}
               >

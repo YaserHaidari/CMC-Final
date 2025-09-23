@@ -20,17 +20,26 @@ debugLog('Debug logging is working');
 
 interface Mentee {
   menteeid: number;
-  auth_userid: string;
-  bio?: string;
+  user_id: string;
   skills: string[];
   target_roles: string[];
   current_level: string;
-  location?: string;
   learning_goals?: string;
   study_level?: string;
   field?: string;
   preferred_mentoring_style?: string;
   time_commitment_hours_per_week?: number;
+  // User data from join
+  name?: string;
+  email?: string;
+  location?: string;
+  bio?: string;
+  users?: {
+    name: string;
+    email: string;
+    location?: string;
+    bio?: string;
+  };
 }
 
 interface MentorMatch {
@@ -103,6 +112,13 @@ function CyberMatchScreen() {
       setLoading(true);
       setError(null);
 
+      // Get current user from auth
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('Please log in to continue');
+        return [];
+      }
+
       // Test connection first
       const connectionOk = await testSupabaseConnection();
       if (!connectionOk) {
@@ -111,14 +127,16 @@ function CyberMatchScreen() {
         const mockMentees: Mentee[] = [
           {
             menteeid: 1,
-            auth_userid: DEMO_MENTEE_IDS[0],
+            user_id: user.id,
+            name: "Demo Student",
+            email: user.email || "demo@example.com",
             bio: "Aspiring cybersecurity professional",
             skills: ["Network Security", "Ethical Hacking", "Risk Assessment"],
             target_roles: ["Security Analyst", "Penetration Tester"],
             current_level: "Beginner",
             location: "Melbourne, AU",
             learning_goals: "Learn practical cybersecurity skills",
-            study_level: "Bachelor's",
+            study_level: "Undergraduate",
             field: "Computer Science"
           }
         ];
@@ -128,23 +146,47 @@ function CyberMatchScreen() {
         return mockMentees;
       }
 
-      const { data, error } = await supabase
+      // Try to get current user's mentee profile first
+      let { data, error } = await supabase
         .from('mentees')
         .select(`
           menteeid,
-          auth_userid,
-          bio,
+          user_id,
           skills,
           target_roles,
           current_level,
-          location,
           learning_goals,
           study_level,
           field,
           preferred_mentoring_style,
-          time_commitment_hours_per_week
+          time_commitment_hours_per_week,
+          users!inner(name, email, location, bio)
         `)
-        .limit(5);
+        .eq('user_id', user.id);
+
+      // If no mentee profile found for current user, get demo profiles
+      if (!data || data.length === 0) {
+        debugLog('No mentee profile found for current user, loading demo profiles...');
+        const { data: demoData, error: demoError } = await supabase
+          .from('mentees')
+          .select(`
+            menteeid,
+            user_id,
+            skills,
+            target_roles,
+            current_level,
+            learning_goals,
+            study_level,
+            field,
+            preferred_mentoring_style,
+            time_commitment_hours_per_week,
+            users!inner(name, email, location, bio)
+          `)
+          .limit(3);
+        
+        data = demoData;
+        error = demoError;
+      }
 
       debugLog('📊 Supabase query result:', { data, error });
 
@@ -153,7 +195,15 @@ function CyberMatchScreen() {
         throw error;
       }
       
-      const menteesData = data || [];
+      const menteesData = (data || []).map((mentee: any) => ({
+        ...mentee,
+        name: mentee.users?.name || 'Unknown User',
+        email: mentee.users?.email || '',
+        location: mentee.users?.location || 'Location not set',
+        bio: mentee.users?.bio || 'No bio available',
+        users: undefined // Remove the users object to match our interface
+      }));
+      
       debugLog('✅ Mentees data processed:', menteesData);
       
       setAvailableMentees(menteesData);
@@ -213,7 +263,7 @@ function CyberMatchScreen() {
       setError(null);
       
       const { data, error } = await supabase.rpc('get_matches', {
-        mentee_userid: currentMentee.auth_userid
+        mentee_userid: currentMentee.user_id
       });
       
       debugLog('🔍 RPC get_matches result:', { data, error });
@@ -300,11 +350,11 @@ function CyberMatchScreen() {
       const { error } = await supabase
         .from('mentorship_requests')
         .insert({
-          menteeid: currentMentee?.auth_userid,
-          mentorid: mentorId,
+          mentee_id: currentMentee?.menteeid,
+          mentor_id: parseInt(mentorId),
+          user_id: currentMentee?.user_id,
           status: 'Pending',
-          message: 'Hi, I would like to request mentorship based on our compatibility match.',
-          created_at: new Date().toISOString()
+          message: 'Hi, I would like to request mentorship based on our compatibility match.'
         });
       
       debugLog('Mentorship request result:', { error });
@@ -349,7 +399,7 @@ function CyberMatchScreen() {
     debugLog('🔄 State updated:', {
       matching,
       loading,
-      currentMentee: currentMentee?.auth_userid,
+      currentMentee: currentMentee?.user_id,
       mentorMatchesCount: mentorMatches.length,
       currentMatchIndex,
       error
@@ -416,7 +466,7 @@ function CyberMatchScreen() {
             {DEBUG && (
               <View style={{ width: '100%', backgroundColor: '#F3F4F6', padding: 12, borderRadius: 8, marginBottom: 16 }}>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>Debug Info:</Text>
-                <Text style={{ fontSize: 10 }}>Current Mentee: {currentMentee?.auth_userid}</Text>
+                <Text style={{ fontSize: 10 }}>Current Mentee: {currentMentee?.user_id}</Text>
                 <Text style={{ fontSize: 10 }}>Available Mentees: {availableMentees.length}</Text>
                 <Text style={{ fontSize: 10 }}>Index: {currentDemoMenteeIndex}</Text>
                 {error && <Text style={{ fontSize: 10, color: '#DC2626' }}>Error: {error}</Text>}
@@ -444,7 +494,7 @@ function CyberMatchScreen() {
                   style={{ width: 80, height: 80, marginBottom: 12, borderRadius: 40, borderWidth: 3, borderColor: '#BFDBFE' }}
                 />
                 <Text style={{ fontSize: 18, fontWeight: '600', color: '#1E3A8A' }}>
-                  {currentMentee?.bio ? 'Profile Loaded' : 'Mentee Profile'}
+                  {currentMentee?.name || 'Mentee Profile'}
                 </Text>
                 <Text style={{ fontSize: 14, color: '#6B7280' }}>
                   Level: {currentMentee?.current_level} • {currentMentee?.location}
@@ -763,7 +813,7 @@ function CyberMatchScreen() {
                     shadowRadius: 4,
                     elevation: 4
                 }}
-                onPress={() => handleRequestMentorship(currentMatch.userid || currentMatch.mentorid)}
+                onPress={() => handleRequestMentorship(String(currentMatch.userid || currentMatch.mentorid))}
                 >
                 <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
                     Request Mentorship
@@ -779,6 +829,7 @@ function CyberMatchScreen() {
               style={{ backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 9999 }}
               onPress={() => setMatching(false)}
             >
+              <Text style={{ color: 'white', fontWeight: '600' }}>Start Over</Text>
             </TouchableOpacity>
           </View>
         )}
