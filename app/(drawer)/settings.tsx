@@ -3,7 +3,6 @@ import AntDesign from '@expo/vector-icons/AntDesign';
 import Fontisto from '@expo/vector-icons/Fontisto';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import CustomHeader from "@/components/CustomHeader";
 import { savePIN, getPIN, deletePIN } from '@/lib/storage';
 import { useState, useEffect } from "react";
 
@@ -34,7 +33,6 @@ function SettingsScreen() {
     return (
         <View className="flex-1 bg-white">
             <ScrollView>
-                <CustomHeader />
                 <Text className="text-3xl font-bold font-Title text-black text-center pb-4">
                     Settings
                 </Text>

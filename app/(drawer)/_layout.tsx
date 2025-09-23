@@ -4,10 +4,10 @@ import Feather from '@expo/vector-icons/Feather';
 
 export default function DrawerLayout() {
     return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
+
             <Drawer
                 screenOptions={{
-                    headerShown: false,
+                    headerShown: true,
                     drawerStyle: {
                         backgroundColor: "#f9fafb",
                         borderTopRightRadius: 24,
@@ -74,6 +74,5 @@ export default function DrawerLayout() {
                     }}
                 />
             </Drawer>
-        </GestureHandlerRootView>
     );
 }
