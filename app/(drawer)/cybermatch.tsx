@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, Alert, ScrollView, ActivityIndicat
 import { supabase } from "@/lib/supabase/initiliaze";
 
 // Add these debugging utilities at the top
-const DEBUG = true; // Set to false in production
+const DEBUG = false; // Set to false in production
 
 const debugLog = (message: string, data?: any) => {
   if (DEBUG) {
@@ -29,17 +29,10 @@ interface Mentee {
   field?: string;
   preferred_mentoring_style?: string;
   time_commitment_hours_per_week?: number;
-  // User data from join
+  // User info from users table
   name?: string;
-  email?: string;
-  location?: string;
   bio?: string;
-  users?: {
-    name: string;
-    email: string;
-    location?: string;
-    bio?: string;
-  };
+  location?: string;
 }
 
 interface MentorMatch {
@@ -60,6 +53,12 @@ interface MentorMatch {
   mentor_certifications?: string[];
   matching_skills?: string[];
   matching_roles?: string[];
+  testimonials?: any[];
+  testimonial_stats?: {
+    total_reviews: number;
+    average_rating: number;
+    rating_distribution: number[];
+  };
 }
 
 const DEMO_MENTEE_IDS = [
@@ -87,7 +86,7 @@ function CyberMatchScreen() {
     try {
       const { data, error } = await supabase
         .from('mentees')
-        .select('count')
+        .select('menteeid')
         .limit(1);
       
       if (error) {
@@ -112,13 +111,6 @@ function CyberMatchScreen() {
       setLoading(true);
       setError(null);
 
-      // Get current user from auth
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('Please log in to continue');
-        return [];
-      }
-
       // Test connection first
       const connectionOk = await testSupabaseConnection();
       if (!connectionOk) {
@@ -127,9 +119,8 @@ function CyberMatchScreen() {
         const mockMentees: Mentee[] = [
           {
             menteeid: 1,
-            user_id: user.id,
+            user_id: DEMO_MENTEE_IDS[0],
             name: "Demo Student",
-            email: user.email || "demo@example.com",
             bio: "Aspiring cybersecurity professional",
             skills: ["Network Security", "Ethical Hacking", "Risk Assessment"],
             target_roles: ["Security Analyst", "Penetration Tester"],
@@ -146,8 +137,7 @@ function CyberMatchScreen() {
         return mockMentees;
       }
 
-      // Try to get current user's mentee profile first
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('mentees')
         .select(`
           menteeid,
@@ -159,34 +149,9 @@ function CyberMatchScreen() {
           study_level,
           field,
           preferred_mentoring_style,
-          time_commitment_hours_per_week,
-          users!inner(name, email, location, bio)
+          time_commitment_hours_per_week
         `)
-        .eq('user_id', user.id);
-
-      // If no mentee profile found for current user, get demo profiles
-      if (!data || data.length === 0) {
-        debugLog('No mentee profile found for current user, loading demo profiles...');
-        const { data: demoData, error: demoError } = await supabase
-          .from('mentees')
-          .select(`
-            menteeid,
-            user_id,
-            skills,
-            target_roles,
-            current_level,
-            learning_goals,
-            study_level,
-            field,
-            preferred_mentoring_style,
-            time_commitment_hours_per_week,
-            users!inner(name, email, location, bio)
-          `)
-          .limit(3);
-        
-        data = demoData;
-        error = demoError;
-      }
+        .limit(5);
 
       debugLog('📊 Supabase query result:', { data, error });
 
@@ -195,22 +160,35 @@ function CyberMatchScreen() {
         throw error;
       }
       
-      const menteesData = (data || []).map((mentee: any) => ({
-        ...mentee,
-        name: mentee.users?.name || 'Unknown User',
-        email: mentee.users?.email || '',
-        location: mentee.users?.location || 'Location not set',
-        bio: mentee.users?.bio || 'No bio available',
-        users: undefined // Remove the users object to match our interface
-      }));
-      
+      const menteesData = data || [];
       debugLog('✅ Mentees data processed:', menteesData);
       
-      setAvailableMentees(menteesData);
+      // Fetch user details for each mentee
+      const enrichedMentees = await Promise.all(menteesData.map(async (mentee: any) => {
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('name, bio, location')
+            .eq('id', mentee.user_id)
+            .single();
+          
+          return {
+            ...mentee,
+            name: userData?.name,
+            bio: userData?.bio,
+            location: userData?.location
+          };
+        } catch (error) {
+          debugLog(`Error fetching user data for mentee ${mentee.menteeid}:`, error);
+          return mentee;
+        }
+      }));
       
-      if (menteesData.length > 0) {
-        setCurrentMentee(menteesData[0]);
-        debugLog('✅ Current mentee set:', menteesData[0]);
+      setAvailableMentees(enrichedMentees);
+      
+      if (enrichedMentees.length > 0) {
+        setCurrentMentee(enrichedMentees[0]);
+        debugLog('✅ Current mentee set:', enrichedMentees[0]);
       } else {
         debugLog('⚠️ No mentees found in database');
         setError('No mentees found in database');
@@ -262,46 +240,269 @@ function CyberMatchScreen() {
       setLoading(true);
       setError(null);
       
-      const { data, error } = await supabase.rpc('get_matches', {
-        mentee_userid: currentMentee.user_id
-      });
+      let matches: MentorMatch[] = [];
       
-      debugLog('🔍 RPC get_matches result:', { data, error });
-      
-      if (error) {
-        debugLog('❌ RPC error:', error);
-        throw error;
-      }
-      
-      const matches: MentorMatch[] = (data || []).map((match: any) => {
-        debugLog('Processing match:', match);
-        return {
-          mentorid: match.mentorid || match.userid,
-          userid: match.userid,
-          mentor_name: match.mentor_name,
-          compatibility_score: parseFloat(match.compatibility_score || 0),
-          skills_score: parseFloat(match.skills_score || 0),
-          roles_score: parseFloat(match.roles_score || 0),
-          skill_overlap_count: match.skill_overlap_count || 0,
-          role_overlap_count: match.role_overlap_count || 0,
-          mentor_experience_level: match.mentor_experience_level,
-          mentor_location: match.mentor_location,
-          mentor_hourly_rate: match.mentor_hourly_rate,
-          mentor_availability: match.mentor_availability,
-          mentor_bio: match.mentor_bio,
-          mentor_certifications: match.mentor_certifications,
-          matching_skills: match.matching_skills,
-          matching_roles: match.matching_roles
-        };
-      });
+      try {
+        // First get all active mentors
+        const { data: mentorsData, error: mentorsError } = await supabase
+          .from('mentors')
+          .select(`
+            mentorid,
+            userid,
+            bio,
+            hourly_rate,
+            skills,
+            specialization_roles,
+            experience_level,
+            years_of_experience,
+            max_mentees,
+            current_mentees,
+            availability_hours_per_week,
+            industries,
+            certifications,
+            location,
+            name,
+            active
+          `)
+          .eq('active', true)
+          .limit(10);
 
-      debugLog('✅ Processed matches:', matches);
+        if (mentorsError) {
+          throw mentorsError;
+        }
+
+        debugLog('📋 Retrieved mentors:', mentorsData);
+
+        // For each mentor, get detailed match information using get_match_details RPC
+        const mentorMatches = await Promise.all((mentorsData || []).map(async (mentor: any) => {
+          try {
+            const { data: matchDetails, error: matchError } = await supabase.rpc('get_match_details', {
+              mentee_userid: currentMentee.user_id,
+              mentor_userid: mentor.userid
+            });
+            
+            debugLog(`Match details for mentor ${mentor.mentorid}:`, matchDetails);
+
+            if (matchError || !matchDetails || matchDetails.length === 0) {
+              // If RPC fails for this mentor, calculate basic match
+              const menteeSkills = currentMentee.skills || [];
+              const menteeRoles = currentMentee.target_roles || [];
+              const mentorSkills = mentor.skills || [];
+              const mentorRoles = mentor.specialization_roles || [];
+
+              const skillOverlap = menteeSkills.filter((skill: string) => 
+                mentorSkills.some((mSkill: any) => 
+                  String(mSkill).toLowerCase().includes(skill.toLowerCase()) || 
+                  skill.toLowerCase().includes(String(mSkill).toLowerCase())
+                )
+              );
+
+              const roleOverlap = menteeRoles.filter((role: string) =>
+                mentorRoles.some((mRole: any) => 
+                  String(mRole).toLowerCase().includes(role.toLowerCase()) ||
+                  role.toLowerCase().includes(String(mRole).toLowerCase())
+                )
+              );
+
+              const skillsScore = menteeSkills.length > 0 ? (skillOverlap.length / menteeSkills.length) * 100 : 0;
+              const rolesScore = menteeRoles.length > 0 ? (roleOverlap.length / menteeRoles.length) * 100 : 0;
+              const compatibilityScore = (skillsScore + rolesScore) / 2;
+
+              return {
+                mentorid: mentor.mentorid,
+                userid: mentor.userid,
+                mentor_name: mentor.name || `Mentor ${mentor.mentorid}`,
+                compatibility_score: Math.round(compatibilityScore),
+                skills_score: Math.round(skillsScore),
+                roles_score: Math.round(rolesScore),
+                skill_overlap_count: skillOverlap.length,
+                role_overlap_count: roleOverlap.length,
+                mentor_experience_level: mentor.experience_level || 'Unknown',
+                mentor_location: mentor.location,
+                mentor_hourly_rate: mentor.hourly_rate,
+                mentor_availability: mentor.availability_hours_per_week,
+                mentor_bio: mentor.bio,
+                mentor_certifications: mentor.certifications,
+                matching_skills: skillOverlap,
+                matching_roles: roleOverlap,
+                experience_gap_appropriate: true
+              };
+            }
+
+            const details = matchDetails[0];
+            const matchingSkills = details.matching_skills || [];
+            const matchingRoles = details.matching_roles || [];
+            const compatibilityBreakdown = details.compatibility_breakdown || {};
+
+            // Calculate scores from the detailed breakdown
+            const skillsScore = compatibilityBreakdown.skills_match_percentage || 0;
+            const rolesScore = compatibilityBreakdown.roles_match_percentage || 0;
+            const compatibilityScore = compatibilityBreakdown.overall_compatibility || ((skillsScore + rolesScore) / 2);
+
+            // Fetch testimonials and stats for this mentor
+            let testimonials: any[] = [];
+            let testimonialStats: any = null;
+            
+            try {
+              const [testimonialsResult, statsResult] = await Promise.all([
+                supabase.rpc('get_mentor_testimonials', {
+                  mentor_id_param: mentor.mentorid,
+                  limit_param: 3,
+                  offset_param: 0
+                }),
+                supabase.rpc('get_mentor_testimonial_stats', {
+                  mentor_id_param: mentor.mentorid
+                })
+              ]);
+              
+              if (!testimonialsResult.error && testimonialsResult.data) {
+                testimonials = testimonialsResult.data;
+              }
+              
+              if (!statsResult.error && statsResult.data && statsResult.data.length > 0) {
+                const stats = statsResult.data[0];
+                testimonialStats = {
+                  total_reviews: stats.total_reviews || 0,
+                  average_rating: parseFloat(stats.average_rating || 0),
+                  rating_distribution: [
+                    stats.rating_1 || 0,
+                    stats.rating_2 || 0,
+                    stats.rating_3 || 0,
+                    stats.rating_4 || 0,
+                    stats.rating_5 || 0
+                  ]
+                };
+              }
+            } catch (testimonialError) {
+              debugLog(`Error fetching testimonials for mentor ${mentor.mentorid}:`, testimonialError);
+            }
+
+            return {
+              mentorid: mentor.mentorid,
+              userid: mentor.userid,
+              mentor_name: mentor.name || `Mentor ${mentor.mentorid}`,
+              compatibility_score: Math.round(compatibilityScore),
+              skills_score: Math.round(skillsScore),
+              roles_score: Math.round(rolesScore),
+              skill_overlap_count: matchingSkills.length,
+              role_overlap_count: matchingRoles.length,
+              mentor_experience_level: mentor.experience_level || 'Unknown',
+              mentor_location: mentor.location,
+              mentor_hourly_rate: mentor.hourly_rate,
+              mentor_availability: mentor.availability_hours_per_week,
+              mentor_bio: mentor.bio,
+              mentor_certifications: mentor.certifications,
+              matching_skills: matchingSkills,
+              matching_roles: matchingRoles,
+              experience_gap_appropriate: compatibilityBreakdown.experience_appropriate || true,
+              testimonials,
+              testimonial_stats: testimonialStats
+            };
+          } catch (error) {
+            debugLog(`Error getting match details for mentor ${mentor.mentorid}:`, error);
+            return null;
+          }
+        }));
+
+        // Filter out null results and sort by compatibility
+        matches = mentorMatches
+          .filter(match => match !== null)
+          .sort((a, b) => b.compatibility_score - a.compatibility_score);
+
+        debugLog('✅ RPC get_match_details processing completed for matches:', matches);
+
+      } catch (rpcError) {
+        debugLog('⚠️ RPC function not available, using complete fallback matching:', rpcError);
+        
+        // Complete fallback: Get all mentors and calculate basic matches
+        const { data: mentorsData, error: mentorsError } = await supabase
+          .from('mentors')
+          .select(`
+            mentorid,
+            userid,
+            bio,
+            hourly_rate,
+            skills,
+            specialization_roles,
+            experience_level,
+            years_of_experience,
+            max_mentees,
+            current_mentees,
+            availability_hours_per_week,
+            industries,
+            certifications,
+            location,
+            name,
+            active
+          `)
+          .eq('active', true)
+          .limit(10);
+
+        if (mentorsError) {
+          throw mentorsError;
+        }
+
+        debugLog('📋 Retrieved mentors for fallback matching:', mentorsData);
+
+        // Calculate basic compatibility scores
+        matches = (mentorsData || []).map((mentor: any) => {
+          const menteeSkills = currentMentee.skills || [];
+          const menteeRoles = currentMentee.target_roles || [];
+          const mentorSkills = mentor.skills || [];
+          const mentorRoles = mentor.specialization_roles || [];
+
+          // Calculate skill overlap
+          const skillOverlap = menteeSkills.filter((skill: string) => 
+            mentorSkills.some((mSkill: any) => 
+              String(mSkill).toLowerCase().includes(skill.toLowerCase()) || 
+              skill.toLowerCase().includes(String(mSkill).toLowerCase())
+            )
+          );
+
+          // Calculate role overlap  
+          const roleOverlap = menteeRoles.filter((role: string) =>
+            mentorRoles.some((mRole: any) => 
+              String(mRole).toLowerCase().includes(role.toLowerCase()) ||
+              role.toLowerCase().includes(String(mRole).toLowerCase())
+            )
+          );
+
+          const skillsScore = menteeSkills.length > 0 ? (skillOverlap.length / menteeSkills.length) * 100 : 0;
+          const rolesScore = menteeRoles.length > 0 ? (roleOverlap.length / menteeRoles.length) * 100 : 0;
+          const compatibilityScore = (skillsScore + rolesScore) / 2;
+
+          return {
+            mentorid: mentor.mentorid,
+            userid: mentor.userid,
+            mentor_name: mentor.name || `Mentor ${mentor.mentorid}`,
+            compatibility_score: Math.round(compatibilityScore),
+            skills_score: Math.round(skillsScore),
+            roles_score: Math.round(rolesScore),
+            skill_overlap_count: skillOverlap.length,
+            role_overlap_count: roleOverlap.length,
+            mentor_experience_level: mentor.experience_level || 'Unknown',
+            mentor_location: mentor.location,
+            mentor_hourly_rate: mentor.hourly_rate,
+            mentor_availability: mentor.availability_hours_per_week,
+            mentor_bio: mentor.bio,
+            mentor_certifications: mentor.certifications,
+            matching_skills: skillOverlap,
+            matching_roles: roleOverlap,
+            experience_gap_appropriate: true
+          };
+        }).sort((a, b) => b.compatibility_score - a.compatibility_score);
+
+        debugLog('✅ Complete fallback matching completed:', matches);
+      }
+
+      debugLog('✅ Final processed matches:', matches);
       return matches;
     } catch (error: any) {
       const errorMessage = error?.message || JSON.stringify(error);
       debugLog('❌ Error getting matches:', errorMessage);
       setError(`Failed to find mentor matches: ${errorMessage}`);
-      Alert.alert('Error', `Failed to find mentor matches: ${errorMessage}`);
+      // Don't show alert for fallback, just log the error
+      debugLog('Using empty matches due to error');
       return [];
     } finally {
       setLoading(false);
@@ -322,7 +523,8 @@ function CyberMatchScreen() {
       debugLog('✅ Matching started successfully');
     } else {
       debugLog('❌ No matches found');
-      Alert.alert('No Matches', 'No mentors found matching your criteria.');
+      // Show a more user-friendly message without an intrusive alert
+      setError('No mentors found matching your criteria. Try expanding your search criteria.');
     }
   };
 
@@ -347,12 +549,22 @@ function CyberMatchScreen() {
     debugLog('📧 Requesting mentorship for mentor:', mentorId);
     
     try {
+      // First get the mentor's integer ID from the mentors table
+      const { data: mentorData } = await supabase
+        .from('mentors')
+        .select('mentorid')
+        .eq('userid', mentorId)
+        .single();
+
+      if (!mentorData) {
+        throw new Error('Mentor not found');
+      }
+
       const { error } = await supabase
         .from('mentorship_requests')
         .insert({
           mentee_id: currentMentee?.menteeid,
-          mentor_id: parseInt(mentorId),
-          user_id: currentMentee?.user_id,
+          mentor_id: mentorData.mentorid,
           status: 'Pending',
           message: 'Hi, I would like to request mentorship based on our compatibility match.'
         });
@@ -363,12 +575,18 @@ function CyberMatchScreen() {
         debugLog('⚠️ Mentorship requests table might not exist, showing demo success');
       }
       
-      Alert.alert("Success", "Mentorship request sent successfully!");
-      handleNext();
+      Alert.alert(
+        "Success", 
+        "Mentorship request sent successfully! Once accepted, you'll be able to work together and leave a testimonial after your mentorship experience.",
+        [{ text: "OK", onPress: handleNext }]
+      );
     } catch (error) {
       debugLog('❌ Error sending mentorship request:', error);
-      Alert.alert('Success', 'Mentorship request sent successfully!');
-      handleNext();
+      Alert.alert(
+        'Success', 
+        'Mentorship request sent successfully! Once accepted, you\'ll be able to work together and leave a testimonial after your mentorship experience.',
+        [{ text: "OK", onPress: handleNext }]
+      );
     }
   };
 
@@ -752,6 +970,67 @@ function CyberMatchScreen() {
                 </View>
             )}
 
+            {/* Testimonials Section */}
+            {currentMatch.testimonial_stats && currentMatch.testimonial_stats.total_reviews > 0 && (
+              <View style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 12 }}>
+                  Student Reviews
+                </Text>
+                
+                {/* Rating Summary */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1E40AF', marginRight: 8 }}>
+                    {(currentMatch.testimonial_stats?.average_rating || 0).toFixed(1)}
+                  </Text>
+                  <View style={{ flexDirection: 'row', marginRight: 8 }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Text key={star} style={{ fontSize: 16, color: star <= Math.round(currentMatch.testimonial_stats?.average_rating || 0) ? '#F59E0B' : '#D1D5DB' }}>
+                        ★
+                      </Text>
+                    ))}
+                  </View>
+                  <Text style={{ fontSize: 14, color: '#6B7280' }}>
+                    ({currentMatch.testimonial_stats?.total_reviews || 0} reviews)
+                  </Text>
+                </View>
+
+                {/* Recent Testimonials */}
+                {currentMatch.testimonials && currentMatch.testimonials.length > 0 && (
+                  <View>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
+                      Recent Reviews:
+                    </Text>
+                    {currentMatch.testimonials.slice(0, 2).map((testimonial: any, index: number) => (
+                      <View key={testimonial.id || index} style={{ 
+                        backgroundColor: 'white', 
+                        borderRadius: 8, 
+                        padding: 12, 
+                        marginBottom: 8,
+                        borderLeftWidth: 3,
+                        borderLeftColor: testimonial.rating >= 4 ? '#10B981' : testimonial.rating >= 3 ? '#F59E0B' : '#EF4444'
+                      }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <Text style={{ fontSize: 12, fontWeight: '500', color: '#374151', flex: 1 }}>
+                            {testimonial.mentee_name || 'Anonymous Student'}
+                          </Text>
+                          <View style={{ flexDirection: 'row' }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Text key={star} style={{ fontSize: 12, color: star <= testimonial.rating ? '#F59E0B' : '#D1D5DB' }}>
+                                ★
+                              </Text>
+                            ))}
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 13, color: '#6B7280', fontStyle: 'italic', lineHeight: 18 }}>
+                          "{testimonial.testimonial_text}"
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Additional Info Row */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
                 {currentMatch.mentor_hourly_rate && (
@@ -794,7 +1073,8 @@ function CyberMatchScreen() {
                 <Text style={{ 
                     color: currentMatchIndex + 1 >= mentorMatches.length ? 'white' : '#374151', 
                     fontWeight: '600', 
-                    fontSize: 16 
+                    fontSize: 16 ,
+                    textAlign: 'center'
                 }}>
                     {currentMatchIndex + 1 >= mentorMatches.length ? 'Finish' : 'Next'}
                 </Text>
@@ -815,7 +1095,7 @@ function CyberMatchScreen() {
                 }}
                 onPress={() => handleRequestMentorship(String(currentMatch.userid || currentMatch.mentorid))}
                 >
-                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, textAlign: 'center' }}>
                     Request Mentorship
                 </Text>
                 </TouchableOpacity>
@@ -829,7 +1109,6 @@ function CyberMatchScreen() {
               style={{ backgroundColor: '#2563EB', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 9999 }}
               onPress={() => setMatching(false)}
             >
-              <Text style={{ color: 'white', fontWeight: '600' }}>Start Over</Text>
             </TouchableOpacity>
           </View>
         )}
