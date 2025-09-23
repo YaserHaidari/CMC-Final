@@ -225,8 +225,8 @@ export default function UpdateProfile() {
 
     if (loading) {
         return (
-            <View className="flex-1 justify-center items-center bg-white">
-                <ActivityIndicator size="large" />
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#3b82f6" />
             </View>
         );
     }
@@ -235,23 +235,22 @@ export default function UpdateProfile() {
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-            className="flex-1 bg-white"
+            style={styles.container}
         >
             <ScrollView 
                 contentContainerStyle={{ flexGrow: 1 }} 
                 keyboardShouldPersistTaps="handled" 
-                className="bg-white"
+                style={styles.scrollView}
             >
-                <View className="w-full p-6 items-center">
+                <View style={styles.profileSection}>
                     <TouchableOpacity onPress={handleAvatarPress} disabled={uploading}>
                         <Image
                             style={styles.profileAvatar}
-                            className="rounded-full border-2 border-gray-200"
                             source={{ uri: imgUri || user?.photoURL || 'https://avatar.iran.liara.run/public/41' }}
                         />
                         {uploading && (
                             <ActivityIndicator
-                                style={{ position: "absolute", top: 40, left: 40 }}
+                                style={styles.uploadingIndicator}
                                 size="large"
                                 color="#3b82f6"
                             />
@@ -260,16 +259,16 @@ export default function UpdateProfile() {
                 </View>
 
                 {user && (
-                    <View className="px-6 w-full">
-                        <Text className="text-base font-medium text-gray-700 mb-1">Name</Text>
+                    <View style={styles.formContainer}>
+                        <Text style={styles.label}>Name</Text>
                         <TextInput
                             value={newDetail.Name}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, Name: text }))}
-                            className="bg-gray-100 rounded-lg px-4 h-12 text-base mb-4 border border-gray-300"
+                            style={styles.input}
                             placeholderTextColor="#6b7280"
                         />
 
-                        <Text className="text-base font-medium text-gray-700 mb-1">Role</Text>
+                        <Text style={styles.label}>Role</Text>
                         <SegmentedControl
                             values={["Student", "Tutor"]}
                             selectedIndex={newDetail.Role === "Tutor" ? 1 : 0}
@@ -277,107 +276,249 @@ export default function UpdateProfile() {
                                 const value = event.nativeEvent.selectedSegmentIndex === 1 ? "Tutor" : "Student";
                                 setNewDetail(prev => ({ ...prev, Role: value }));
                             }}
-                            className="mb-4"
+                            style={styles.segmentedControl}
                             tintColor="#3b82f6"
                         />
 
-                        <Text className="text-base font-medium text-gray-700 mb-1">Bio</Text>
+                        <Text style={styles.label}>Bio</Text>
                         <TextInput
                             value={newDetail.Bio}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, Bio: text }))}
-                            className="bg-gray-100 rounded-lg px-4 h-12 text-base mb-4 border border-gray-300"
+                            style={[styles.input, styles.multilineInput]}
                             placeholderTextColor="#6b7280"
                             multiline
                         />
 
-                        <Text className="text-base font-medium text-gray-700 mb-1">Date of Birth</Text>
+                        <Text style={styles.label}>Date of Birth</Text>
                         <TextInput
                             value={newDetail.DOB}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, DOB: text }))}
-                            className="bg-gray-100 rounded-lg px-4 h-12 text-base mb-4 border border-gray-300"
+                            style={styles.input}
                             placeholderTextColor="#6b7280"
                             placeholder="YYYY-MM-DD"
                         />
 
-                        <Text className="text-base font-medium text-gray-700 mb-1">Email</Text>
+                        <Text style={styles.label}>Email</Text>
                         <TextInput
                             value={newDetail.Email}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, Email: text }))}
-                            className="bg-gray-100 rounded-lg px-4 h-12 text-base mb-4 border border-gray-300"
+                            style={styles.input}
                             placeholderTextColor="#6b7280"
                             keyboardType="email-address"
                         />
 
-                        <Text className="text-base font-medium text-gray-700 mb-1">Location</Text>
+                        <Text style={styles.label}>Location</Text>
                         <TextInput
                             value={newDetail.Location}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, Location: text }))}
-                            className="bg-gray-100 rounded-lg px-4 h-12 text-base mb-4 border border-gray-300"
+                            style={styles.input}
                             placeholderTextColor="#6b7280"
                         />
 
-                        <View className="flex-row justify-between mb-4">
+                        <View style={styles.buttonRow}>
                             <TouchableOpacity
                                 onPress={handleCancel}
-                                className="flex-1 mr-2 justify-center items-center bg-gray-300 rounded-lg h-12"
+                                style={[styles.button, styles.cancelButton]}
                             >
-                                <Text className="text-lg font-medium text-gray-800">
+                                <Text style={styles.cancelButtonText}>
                                     Cancel
                                 </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={() => handleSubmit(user.email)}
-                                className="flex-1 ml-2 justify-center items-center bg-blue-500 rounded-lg h-12"
+                                style={[styles.button, styles.updateButton]}
                             >
-                                <Text className="text-lg font-medium text-white">
+                                <Text style={styles.updateButtonText}>
                                     Update
                                 </Text>
                             </TouchableOpacity>
                         </View>
-
-                        <TouchableOpacity
-                            onPress={() => deleteUser(user.email)}
-                            className="w-full justify-center items-center bg-red-600 rounded-lg h-12 mb-8"
-                        >
-                            <Text className="text-lg font-medium text-white">
-                                Delete Account
-                            </Text>
-                        </TouchableOpacity>
                     </View>
                 )}
 
                 {/* --- PIN Section --- */}
-                <View className="flex-1 bg-white p-6">
-                    <Text className="text-xl mb-4">Security Settings</Text>
+                <View style={styles.pinSection}>
+                    <Text style={styles.sectionTitle}>Security Settings</Text>
                     <TextInput
-                        className="border p-4 mb-4 text-center text-xl text-black"
+                        style={styles.pinInput}
                         keyboardType="number-pad"
                         secureTextEntry
                         placeholder="Enter new PIN"
-                        placeholderTextColor="black"
+                        placeholderTextColor="#6b7280"
                         value={pin}
                         onChangeText={setPin}
                         maxLength={6}
                     />
                     <TouchableOpacity
-                        className="bg-primary p-4 rounded"
+                        style={styles.pinButton}
                         onPress={handleSetPin}
                     >
-                        <Text className="text-white text-center">
+                        <Text style={styles.pinButtonText}>
                             {currentPin ? "Change PIN" : "Set PIN"}
                         </Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* Delete Account Button - Moved to the end */}
+                {user && (
+                    <View style={styles.deleteSection}>
+                        <TouchableOpacity
+                            onPress={() => deleteUser(user.email)}
+                            style={styles.deleteButton}
+                        >
+                            <Text style={styles.deleteButtonText}>
+                                Delete Account
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'white',
+    },
+    container: {
+        flex: 1,
+        backgroundColor: 'white',
+    },
+    scrollView: {
+        backgroundColor: 'white',
+    },
+    profileSection: {
+        width: '100%',
+        padding: 24,
+        alignItems: 'center',
+        backgroundColor: 'white',
+    },
     profileAvatar: {
         width: 120,
         height: 120,
-        marginBottom: 20,
+        borderRadius: 60,
+        borderWidth: 2,
+        borderColor: '#e5e7eb',
+    },
+    uploadingIndicator: {
+        position: 'absolute',
+        top: 40,
+        left: 40,
+    },
+    formContainer: {
+        paddingHorizontal: 24,
+        width: '100%',
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#374151',
+        marginBottom: 8,
+        marginTop: 8,
+    },
+    input: {
+        backgroundColor: '#f3f4f6',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 48,
+        fontSize: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        color: '#111827',
+    },
+    multilineInput: {
+        height: 80,
+        textAlignVertical: 'top',
+        paddingTop: 12,
+    },
+    segmentedControl: {
+        marginBottom: 16,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+        marginTop: 8,
+    },
+    button: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+        height: 48,
+    },
+    cancelButton: {
+        backgroundColor: '#e5e7eb',
+        marginRight: 8,
+    },
+    updateButton: {
+        backgroundColor: '#3b82f6',
+        marginLeft: 8,
+    },
+    cancelButtonText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: '#374151',
+    },
+    updateButtonText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: 'white',
+    },
+    pinSection: {
+        backgroundColor: 'white',
+        padding: 24,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#111827',
+        marginBottom: 16,
+    },
+    pinInput: {
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 18,
+        textAlign: 'center',
+        color: '#111827',
+        backgroundColor: '#f9fafb',
+        marginBottom: 16,
+    },
+    pinButton: {
+        backgroundColor: '#3b82f6',
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    pinButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    deleteSection: {
+        padding: 24,
+        paddingTop: 8,
+    },
+    deleteButton: {
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#dc2626',
+        borderRadius: 12,
+        height: 48,
+        marginBottom: 32,
+    },
+    deleteButtonText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: 'white',
     },
 });

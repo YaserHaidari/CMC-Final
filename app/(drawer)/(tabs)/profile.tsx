@@ -1,7 +1,7 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/initiliaze";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import AntDesign from '@expo/vector-icons/AntDesign';
 import Fontisto from '@expo/vector-icons/Fontisto';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -130,6 +130,38 @@ export default function ProfileScreen() {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  // Refresh profile when screen comes into focus (e.g., after updating profile)
+  useFocusEffect(
+    React.useCallback(() => {
+      const refreshProfile = async () => {
+        if (session?.user?.email) {
+          const { data, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("email", session.user.email)
+            .limit(1);
+
+          if (!error && data && data.length > 0) {
+            const userData = data[0];
+            setUser({
+              id: userData.id,
+              created_at: userData.created_at,
+              user_type: userData.user_type,
+              photoURL: userData.photoURL || "",
+              email: userData.email,
+              name: userData.name,
+              bio: userData.bio || "",
+              Location: userData.location || "",
+              DOB: userData.DOB || ""
+            });
+          }
+        }
+      };
+
+      refreshProfile();
+    }, [session])
+  );
 
   // Logout and navigation
   const logoutFunction = async () => {

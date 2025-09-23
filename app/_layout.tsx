@@ -2,10 +2,10 @@ import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import "./global.css";
 import { useEffect } from "react";
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
-import { MenuProvider } from 'react-native-popup-menu'; 
+import { MenuProvider } from "react-native-popup-menu";
 
 function RootLayout() {
   const [loaded, error] = useFonts({
@@ -31,25 +31,42 @@ function RootLayout() {
 
   // Handle notification click anywhere in the app
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const screen = response.notification.request.content.data?.screen as string | undefined;
-      const allowedScreens = [
-        "accessDenied",
-        "chat",
-        "cybermatch",
-        "findmentors",
-        "home",
-        "login",
-        "notifications",
-        "pin",
-        "profile",
-        "register",
-        "settings",
-      ];
-      if (typeof screen === "string" && allowedScreens.includes(screen)) {
-        router.push(`/${screen}` as `/accessDenied` | `/chat` | `/cybermatch` | `/findmentors` | `/home` | `/login` | `/notifications` | `/pin` | `/profile` | `/register` | `/settings`);
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const screen = response.notification.request.content.data?.screen as
+          | string
+          | undefined;
+        const allowedScreens = [
+          "accessDenied",
+          "chat",
+          "cybermatch",
+          "findmentors",
+          "home",
+          "login",
+          "notifications",
+          "pin",
+          "profile",
+          "register",
+          "settings",
+        ];
+        if (typeof screen === "string" && allowedScreens.includes(screen)) {
+          router.push(
+            `/${screen}` as
+              | `/accessDenied`
+              | `/chat`
+              | `/cybermatch`
+              | `/findmentors`
+              | `/home`
+              | `/login`
+              | `/notifications`
+              | `/pin`
+              | `/profile`
+              | `/register`
+              | `/settings`
+          );
+        }
       }
-    });
+    );
 
     return () => subscription.remove();
   }, []);
@@ -64,13 +81,18 @@ function RootLayout() {
             name="(drawer)"
             options={{
               headerBackVisible: false,
-              headerTitle: '',
+              headerTitle: "",
             }}
           />
 
           <Stack.Screen name="register" options={{ title: "Register" }} />
           <Stack.Screen name="login" options={{ title: "Login" }} />
           <Stack.Screen name="pin" options={{ title: "Enter PIN" }} />
+          <Stack.Screen
+            name="updateProfile"
+            options={{ title: "Update Profile" }}
+          />
+
           <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
         </Stack>
       </MenuProvider>
