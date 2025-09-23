@@ -1,4 +1,5 @@
 import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from "react-native";
+import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase/initiliaze";
 import { useRouter } from "expo-router";
@@ -18,16 +19,69 @@ interface User {
     email: string;
     name: string;
     bio: string;
-    Location: string;
+    location: string;
     DOB: string;
 }
 
 export default function UpdateProfile() {
-    const [newDetail, setNewDetail] = useState({ Name: "", Bio: "", Role: "", DOB: "", Email: "", Location: "" });
+    const [newDetail, setNewDetail] = useState({ Name: "", Bio: "", Role: "", DOB: "", Email: "", location: "" });
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [showLocationPicker, setShowLocationPicker] = useState(false);
+
+    // Australian cities list
+    const australianCities = [
+        "Adelaide, SA",
+        "Albany, WA",
+        "Albury-Wodonga, NSW/VIC",
+        "Alice Springs, NT",
+        "Ballarat, VIC",
+        "Bendigo, VIC",
+        "Brisbane, QLD",
+        "Broken Hill, NSW",
+        "Broome, WA",
+        "Bundaberg, QLD",
+        "Bunbury, WA",
+        "Cairns, QLD",
+        "Canberra, ACT",
+        "Coffs Harbour, NSW",
+        "Darwin, NT",
+        "Dubbo, NSW",
+        "Geelong, VIC",
+        "Geraldton, WA",
+        "Gladstone, QLD",
+        "Gold Coast, QLD",
+        "Hervey Bay, QLD",
+        "Hobart, TAS",
+        "Kalgoorlie-Boulder, WA",
+        "Launceston, TAS",
+        "Mackay, QLD",
+        "Mandurah, WA",
+        "Melbourne, VIC",
+        "Mildura, VIC",
+        "Mount Gambier, SA",
+        "Newcastle, NSW",
+        "Orange, NSW",
+        "Perth, WA",
+        "Port Augusta, SA",
+        "Port Hedland, WA",
+        "Port Lincoln, SA",
+        "Port Macquarie, NSW",
+        "Rockhampton, QLD",
+        "Shepparton, VIC",
+        "Sunshine Coast, QLD",
+        "Sydney, NSW",
+        "Tamworth, NSW",
+        "Toowoomba, QLD",
+        "Townsville, QLD",
+        "Traralgon, VIC",
+        "Wagga Wagga, NSW",
+        "Warrnambool, VIC",
+        "Whyalla, SA",
+        "Wollongong, NSW"
+    ];
     const [imgUri, setImgUri] = useState<string | null>(null);
     const router = useRouter();
 
@@ -73,7 +127,7 @@ export default function UpdateProfile() {
                         Role: data.user_type || "",
                         DOB: data.DOB || "",
                         Email: data.email || "",
-                        Location: data.Location || ""
+                        location: data.location || ""
                     });
                 }
                 setLoading(false);
@@ -176,25 +230,55 @@ export default function UpdateProfile() {
 
     // Handle update
     const handleSubmit = async (email: string) => {
+        console.log('🔄 Update initiated for:', email);
+        console.log('📝 Current form data:', newDetail);
+        console.log('👤 Current user data:', user);
+        
         const updatedFields: any = {};
-        if (newDetail.Name) updatedFields.name = newDetail.Name;
-        if (newDetail.Bio) updatedFields.bio = newDetail.Bio;
-        if (newDetail.Role) updatedFields.user_type = newDetail.Role;
-        if (newDetail.DOB) updatedFields.DOB = newDetail.DOB;
-        if (newDetail.Email) updatedFields.email = newDetail.Email;
-        if (newDetail.Location) updatedFields.Location = newDetail.Location;
+        
+        // Always include all fields, even if empty (to allow clearing fields)
+        if (newDetail.Name !== undefined && newDetail.Name !== (user?.name || "")) {
+            updatedFields.name = newDetail.Name;
+        }
+        if (newDetail.Bio !== undefined && newDetail.Bio !== (user?.bio || "")) {
+            updatedFields.bio = newDetail.Bio;
+        }
+        if (newDetail.Role !== undefined && newDetail.Role !== (user?.user_type || "")) {
+            updatedFields.user_type = newDetail.Role;
+        }
+        if (newDetail.DOB !== undefined && newDetail.DOB !== (user?.DOB || "")) {
+            updatedFields.DOB = newDetail.DOB;
+        }
+        if (newDetail.Email !== undefined && newDetail.Email !== (user?.email || "")) {
+            updatedFields.email = newDetail.Email;
+        }
+        if (newDetail.location !== undefined && newDetail.location !== (user?.location || "")) {
+            updatedFields.location = newDetail.location;
+        }
+
+        console.log('📦 Fields to update:', updatedFields);
 
         if (Object.keys(updatedFields).length > 0) {
-            const { error } = await supabase
+            console.log('💾 Sending update to database...');
+            const { error, data } = await supabase
                 .from("users")
                 .update(updatedFields)
-                .eq("email", email);
+                .eq("email", email)
+                .select();
 
             if (!error) {
+                console.log('✅ Update successful:', data);
+                Alert.alert("Success", "Profile updated successfully!");
                 setTimeout(() => {
                     router.canGoBack() ? router.back() : router.push("/profile");
                 }, 1000);
+            } else {
+                console.log('❌ Update failed:', error.message);
+                Alert.alert("Error", `Failed to update profile: ${error.message}`);
             }
+        } else {
+            console.log('ℹ️ No changes detected');
+            Alert.alert("Info", "No changes to save.");
         }
     };
 
@@ -267,19 +351,6 @@ export default function UpdateProfile() {
                             style={styles.input}
                             placeholderTextColor="#6b7280"
                         />
-
-                        <Text style={styles.label}>Role</Text>
-                        <SegmentedControl
-                            values={["Student", "Tutor"]}
-                            selectedIndex={newDetail.Role === "Tutor" ? 1 : 0}
-                            onChange={event => {
-                                const value = event.nativeEvent.selectedSegmentIndex === 1 ? "Tutor" : "Student";
-                                setNewDetail(prev => ({ ...prev, Role: value }));
-                            }}
-                            style={styles.segmentedControl}
-                            tintColor="#3b82f6"
-                        />
-
                         <Text style={styles.label}>Bio</Text>
                         <TextInput
                             value={newDetail.Bio}
@@ -308,12 +379,32 @@ export default function UpdateProfile() {
                         />
 
                         <Text style={styles.label}>Location</Text>
-                        <TextInput
-                            value={newDetail.Location}
-                            onChangeText={text => setNewDetail(prev => ({ ...prev, Location: text }))}
-                            style={styles.input}
-                            placeholderTextColor="#6b7280"
-                        />
+                        <TouchableOpacity
+                            style={styles.pickerContainer}
+                            onPress={() => setShowLocationPicker(!showLocationPicker)}
+                        >
+                            <Text style={[styles.pickerText, !newDetail.location && styles.placeholderText]}>
+                                {newDetail.location || "Select your city"}
+                            </Text>
+                        </TouchableOpacity>
+                        
+                        {showLocationPicker && (
+                            <View style={styles.pickerWrapper}>
+                                <Picker
+                                    selectedValue={newDetail.location}
+                                    onValueChange={(itemValue) => {
+                                        setNewDetail(prev => ({ ...prev, location: itemValue }));
+                                        setShowLocationPicker(false);
+                                    }}
+                                    style={styles.picker}
+                                >
+                                    <Picker.Item label="Select your city" value="" />
+                                    {australianCities.map((city, index) => (
+                                        <Picker.Item key={index} label={city} value={city} />
+                                    ))}
+                                </Picker>
+                            </View>
+                        )}
 
                         <View style={styles.buttonRow}>
                             <TouchableOpacity
@@ -520,5 +611,33 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '500',
         color: 'white',
+    },
+    pickerContainer: {
+        backgroundColor: '#f3f4f6',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 48,
+        justifyContent: 'center',
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+    },
+    pickerText: {
+        fontSize: 16,
+        color: 'black',
+    },
+    placeholderText: {
+        color: 'black',
+    },
+    pickerWrapper: {
+        backgroundColor: '#f3f4f6',
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        maxHeight: 200,
+    },
+    picker: {
+        backgroundColor: 'black',
     },
 });

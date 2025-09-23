@@ -16,13 +16,8 @@ function HomeScreen() {
 
   useEffect(() => {
     initializeUser();
+    fetchMentors();
   }, []);
-
-  useEffect(() => {
-    if (currentMenteeId) {
-      fetchMentors();
-    }
-  }, [currentMenteeId]);
 
   // Initialize Supabase user
   async function initializeUser() {
@@ -39,33 +34,18 @@ function HomeScreen() {
       setPhotoUrl(user.user_metadata.avatar_url);
     }
 
-    // Get mentee row using user_id (not email)
+    // Get mentee row using email
     const { data: menteeData, error: menteeError } = await supabase
       .from("mentees")
       .select("menteeid, name")
-      .eq("user_id", user.id)
+      .eq("email", user.email)
       .single();
-
-    console.log('Mentee lookup:', { userId: user.id, menteeData, menteeError });
 
     if (!menteeError && menteeData) {
       setCurrentMenteeId(menteeData.menteeid);
       setWelcomeMessage(menteeData.name);
-      console.log('Current mentee ID set:', menteeData.menteeid);
     } else {
       console.log("User is not registered as a mentee:", menteeError?.message);
-      // Fallback: try looking up by email if user_id fails
-      const { data: menteeDataFallback, error: menteeErrorFallback } = await supabase
-        .from("mentees")
-        .select("menteeid, name")
-        .eq("email", user.email)
-        .single();
-      
-      if (!menteeErrorFallback && menteeDataFallback) {
-        setCurrentMenteeId(menteeDataFallback.menteeid);
-        setWelcomeMessage(menteeDataFallback.name);
-        console.log('Current mentee ID set via email fallback:', menteeDataFallback.menteeid);
-      }
     }
   }
 
@@ -90,16 +70,11 @@ function HomeScreen() {
       });
       setMentorVotes(votes);
 
-      // Always fetch user votes when we have mentors data
-      if (currentMenteeId && mentorsData.length > 0) {
-        const { data: userVoteData, error: voteError } = await supabase
+      if (currentMenteeId) {
+        const { data: userVoteData } = await supabase
           .from("mentor_votes")
           .select("*")
           .eq("userid", currentMenteeId);
-
-        if (voteError) {
-          console.log("Error fetching user votes:", voteError.message);
-        }
 
         const userVoteState: any = {};
         mentorsData.forEach((mentor) => {
@@ -115,17 +90,10 @@ function HomeScreen() {
 
   // Handle vote
   const handleVote = async (mentorId: number, vote: 1 | -1) => {
-    console.log('handleVote called with:', { mentorId, vote, currentMenteeId });
-    
-    if (!currentMenteeId) {
-      console.log('No current mentee ID, cannot vote');
-      return;
-    }
+    if (!currentMenteeId) return;
 
     const prevVote = userVotes[mentorId] || 0;
     let newVote: 1 | -1 | 0 = prevVote === vote ? 0 : vote; // toggle if same pressed
-    
-    console.log('Vote calculation:', { prevVote, newVote });
 
     try {
       if (newVote === 0) {
@@ -139,22 +107,16 @@ function HomeScreen() {
           return;
         }
       } else {
-        console.log('Attempting to upsert vote:', { mentorid: Number(mentorId), userid: currentMenteeId, vote: newVote });
-        
-        const { data: upsertData, error: upsertErr } = await supabase
+        const { error: upsertErr } = await supabase
           .from("mentor_votes")
           .upsert(
             { mentorid: Number(mentorId), userid: currentMenteeId, vote: newVote },
             { onConflict: "mentorid,userid" }
-          )
-          .select();
-          
+          );
         if (upsertErr) {
-          console.log("Upsert error:", upsertErr.message, upsertErr);
+          console.log("Upsert error:", upsertErr.message);
           return;
         }
-        
-        console.log('Upsert successful:', upsertData);
       }
 
       // Count votes from mentor_votes table
@@ -168,10 +130,8 @@ function HomeScreen() {
         return;
       }
 
-      const upvotes = votes?.filter((v) => v.vote === 1).length || 0;
-      const downvotes = votes?.filter((v) => v.vote === -1).length || 0;
-      
-      console.log('Vote counts:', { upvotes, downvotes, totalVotes: votes?.length });
+      const upvotes = votes.filter((v) => v.vote === 1).length;
+      const downvotes = votes.filter((v) => v.vote === -1).length;
 
       // Update mentor row
       const { error: updateErr } = await supabase

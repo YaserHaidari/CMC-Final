@@ -63,16 +63,6 @@ export default function DrawerLayout() {
                         ),
                     }}
                 />
-                <Drawer.Screen 
-                    name="settings" 
-                    options={{
-                        drawerLabel: "Settings",
-                        title: "Settings",
-                        drawerIcon: ({ color, size }) => (
-                            <Feather name="settings" size={24} color={color} />
-                        ),
-                    }}
-                />
             </Drawer>
     );
 }
