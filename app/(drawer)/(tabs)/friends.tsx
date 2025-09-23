@@ -9,6 +9,7 @@ type Friend = {
   email: string;
   user_type: string;
   auth_id: string;
+  status: string;
 };
 
 export default function Friends() {
@@ -64,37 +65,126 @@ export default function Friends() {
     fetchBlocked();
   }, [currentAuthId]);
 
-  // 3️⃣ Fetch all users from users table
+  // 3️⃣ Fetch users with approved mentorship requests
   useEffect(() => {
     async function fetchFriends() {
-      if (!currentUserEmail) return;
+      if (!currentUserEmail || !currentAuthId) return;
 
       try {
-        // Fetch all users except current user
-        const { data: usersData, error: usersError } = await supabase
+        // Get current user's ID to determine if they're a mentor or mentee
+        const { data: currentUserData, error: currentUserError } = await supabase
           .from("users")
-          .select("id, name, email, user_type")
-          .neq("email", currentUserEmail);
+          .select("id, user_type")
+          .eq("email", currentUserEmail)
+          .single();
 
-        if (usersError) throw usersError;
+        if (currentUserError || !currentUserData) {
+          throw new Error("Could not find current user");
+        }
 
-        const allFriends: Friend[] = (usersData || []).map(user => ({
-          id: user.id,
-          name: user.name ?? "Unknown User",
-          email: user.email ?? "",
-          user_type: user.user_type ?? "Student",
-          auth_id: user.id.toString() // Using user ID as auth reference
-        }));
+        let approvedFriends: Friend[] = [];
 
-        setFriends(allFriends);
+        if (currentUserData.user_type === "Mentor") {
+          // If current user is a mentor, show mentees with approved requests
+          const { data: mentorshipData, error: mentorshipError } = await supabase
+            .from("mentorship_requests")
+            .select(`
+              status,
+              mentees!inner(menteeid, user_id),
+              users!inner(id, name, email, user_type)
+            `)
+            .eq("status", "Approved")
+            .eq("mentors.userid", currentAuthId);
+
+          if (mentorshipError) {
+            console.log("Error fetching mentor relationships:", mentorshipError);
+            // Fallback: try with mentor_id if the above doesn't work
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from("mentorship_requests")
+              .select(`
+                status,
+                mentee_id,
+                mentees!inner(menteeid, user_id),
+                users!inner(id, name, email, user_type)
+              `)
+              .eq("status", "Approved");
+            
+            if (!fallbackError && fallbackData) {
+              approvedFriends = fallbackData.map((req: any) => ({
+                id: req.users.id,
+                name: req.users.name ?? "Unknown User",
+                email: req.users.email ?? "",
+                user_type: req.users.user_type ?? "Student",
+                auth_id: req.users.id.toString(),
+                status: req.status
+              }));
+            }
+          } else if (mentorshipData) {
+            approvedFriends = mentorshipData.map((req: any) => ({
+              id: req.users.id,
+              name: req.users.name ?? "Unknown User",
+              email: req.users.email ?? "",
+              user_type: req.users.user_type ?? "Student", 
+              auth_id: req.users.id.toString(),
+              status: req.status
+            }));
+          }
+        } else {
+          // If current user is a mentee, show mentors with approved requests
+          const { data: mentorshipData, error: mentorshipError } = await supabase
+            .from("mentorship_requests")
+            .select(`
+              status,
+              mentors!inner(mentorid, userid),
+              users!inner(id, name, email, user_type)
+            `)
+            .eq("status", "Approved")
+            .eq("mentees.user_id", currentAuthId);
+
+          if (mentorshipError) {
+            console.log("Error fetching mentee relationships:", mentorshipError);
+            // Fallback: try a different approach
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from("mentorship_requests")
+              .select(`
+                status,
+                mentor_id,
+                mentors!inner(mentorid, userid),
+                users!inner(id, name, email, user_type)
+              `)
+              .eq("status", "Approved");
+            
+            if (!fallbackError && fallbackData) {
+              approvedFriends = fallbackData.map((req: any) => ({
+                id: req.users.id,
+                name: req.users.name ?? "Unknown User",
+                email: req.users.email ?? "",
+                user_type: req.users.user_type ?? "Mentor",
+                auth_id: req.users.id.toString(),
+                status: req.status
+              }));
+            }
+          } else if (mentorshipData) {
+            approvedFriends = mentorshipData.map((req: any) => ({
+              id: req.users.id,
+              name: req.users.name ?? "Unknown User",
+              email: req.users.email ?? "",
+              user_type: req.users.user_type ?? "Mentor",
+              auth_id: req.users.id.toString(),
+              status: req.status
+            }));
+          }
+        }
+
+        setFriends(approvedFriends);
       } catch (err: any) {
-        console.error("Error fetching friends:", err);
-        Alert.alert("Error", "Failed to fetch friends.");
+        console.error("Error fetching approved mentorship connections:", err);
+        Alert.alert("Error", "Failed to fetch your mentorship connections.");
       }
     }
 
     fetchFriends();
-  }, [currentUserEmail]);
+  }, [currentUserEmail, currentAuthId]);
 
   // 4️⃣ Handle block/unblock
   async function toggleBlock(friend: Friend) {
@@ -152,9 +242,9 @@ export default function Friends() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.header}>Friends</Text>
+      <Text style={styles.header}>My Connections</Text>
       {friends.length === 0 ? (
-        <Text style={styles.emptyText}>No friends found.</Text>
+        <Text style={styles.emptyText}>No approved mentorship connections yet.</Text>
       ) : (
         friends.map((friend) => (
           <View key={`${friend.user_type}_${friend.id}`} style={styles.card}>
@@ -166,7 +256,12 @@ export default function Friends() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{friend.name}</Text>
                 <Text style={styles.email}>{friend.email}</Text>
-                <Text style={styles.userType}>{friend.user_type}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                  <Text style={styles.userType}>{friend.user_type}</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>✓ {friend.status}</Text>
+                  </View>
+                </View>
               </View>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => showBlockMenu(friend)} style={{ padding: 8 }}>
@@ -211,5 +306,16 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 17, fontWeight: "600", color: "#222" },
   email: { fontSize: 13, color: "#6b7280", marginTop: 2 },
-  userType: { fontSize: 11, color: "#9ca3af", marginTop: 1, fontWeight: "500" },
+  userType: { fontSize: 11, color: "#9ca3af", marginTop: 1, fontWeight: "500", marginRight: 8 },
+  statusBadge: {
+    backgroundColor: "#dcfce7",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  statusText: {
+    fontSize: 10,
+    color: "#166534",
+    fontWeight: "600",
+  },
 });
