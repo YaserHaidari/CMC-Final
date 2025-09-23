@@ -11,10 +11,10 @@ interface MentorshipRequest {
   id: string;
   created_at: string;
   status: 'pending' | 'accepted' | 'declined';
-  student_id: string;
-  tutor_id: string;
-  students?: UserInfo;
-  tutors?: UserInfo;
+  mentee_id: number;
+  mentor_id: number;
+  mentee?: UserInfo[];
+  mentor?: UserInfo[];
 }
 
 function NotificationsScreen() {
@@ -40,7 +40,7 @@ function NotificationsScreen() {
       // Get user data from users table to determine role
       const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("user_type")
+        .select("id, user_type")
         .eq("email", session.user.email)
         .single();
 
@@ -54,13 +54,36 @@ function NotificationsScreen() {
 
       setRole(userData.user_type);
 
-      // Use the auth user ID (UUID) for mentorship requests
-      const authUserId = session.user.id;
+      if (userData.user_type.toLowerCase() === "mentor") {
+        // Get mentor ID from mentors table
+        const { data: mentorData, error: mentorError } = await supabase
+          .from("mentors")
+          .select("mentorid")
+          .eq("userid", session.user.id)
+          .single();
 
-      if (userData.user_type.toLowerCase() === "tutor") {
-        fetchMentorshipRequestsForTutor(authUserId);
+        if (mentorError || !mentorData) {
+          Alert.alert("Error", "Could not find your mentor profile.");
+          setIsLoading(false);
+          return;
+        }
+
+        fetchMentorshipRequestsForTutor(mentorData.mentorid);
       } else {
-        fetchAcceptedMentorsForStudent(authUserId);
+        // Get mentee ID from mentees table
+        const { data: menteeData, error: menteeError } = await supabase
+          .from("mentees")
+          .select("menteeid")
+          .eq("user_id", session.user.id)
+          .single();
+
+        if (menteeError || !menteeData) {
+          Alert.alert("Error", "Could not find your mentee profile.");
+          setIsLoading(false);
+          return;
+        }
+
+        fetchAcceptedMentorsForStudent(menteeData.menteeid);
       }
     } catch (e: any) {
       Alert.alert("Error", "An unexpected error occurred while fetching your profile.");
@@ -68,34 +91,70 @@ function NotificationsScreen() {
     }
   }
 
-  // For tutors: show all mentorship requests where you are the tutor
-  async function fetchMentorshipRequestsForTutor(tutorAuthId: string) {
+  // For mentors: show all mentorship requests where you are the mentor
+  async function fetchMentorshipRequestsForTutor(mentorId: number) {
     try {
       const { data, error } = await supabase
-        .from('request_mentorship')
+        .from('mentorship_requests')
         .select(`
           id,
           created_at,
           status,
-          student_id,
-          tutor_id,
-          students:student_id(name, email),
-          tutors:tutor_id(name, email)
+          mentee_id,
+          mentor_id
         `)
-        .eq('tutor_id', tutorAuthId)
+        .eq('mentor_id', mentorId)
         .order('created_at', { ascending: false });
-
-      console.log("Fetched tutor requests:", data);
 
       if (error) {
         console.error("Error fetching tutor requests:", error);
         Alert.alert("Error", `Could not load mentorship requests: ${error.message}`);
         setRequests([]);
-      } else if (data) {
-        setRequests(data as MentorshipRequest[]);
-      } else {
-        setRequests([]);
+        setIsLoading(false);
+        return;
       }
+
+      if (!data || data.length === 0) {
+        setRequests([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch user details for mentees using separate queries
+      const combinedData = await Promise.all(data.map(async (req) => {
+        try {
+          // Get mentee data
+          const { data: menteeData } = await supabase
+            .from('mentees')
+            .select('user_id')
+            .eq('menteeid', req.mentee_id)
+            .single();
+
+          if (menteeData?.user_id) {
+            // Get user data
+            const { data: userData } = await supabase
+              .from('users')
+              .select('name, email')
+              .eq('id', menteeData.user_id)
+              .single();
+
+            return {
+              ...req,
+              mentee: userData ? [{ name: userData.name, email: userData.email }] : []
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching mentee data for request:', req.id, error);
+        }
+
+        return {
+          ...req,
+          mentee: []
+        };
+      }));
+
+      setRequests(combinedData as MentorshipRequest[]);
+      console.log("Fetched tutor requests:", combinedData);
     } catch (e: any) {
       console.error("Unexpected error fetching tutor requests:", e);
       Alert.alert("Error", "An unexpected error occurred while fetching requests.");
@@ -105,35 +164,71 @@ function NotificationsScreen() {
     }
   }
 
-  // For students: show all accepted mentors
-  async function fetchAcceptedMentorsForStudent(studentAuthId: string) {
+  // For mentees: show all accepted mentors
+  async function fetchAcceptedMentorsForStudent(menteeId: number) {
     try {
       const { data, error } = await supabase
-        .from('request_mentorship')
+        .from('mentorship_requests')
         .select(`
           id,
           created_at,
           status,
-          student_id,
-          tutor_id,
-          students:student_id(name, email),
-          tutors:tutor_id(name, email)
+          mentee_id,
+          mentor_id
         `)
-        .eq('student_id', studentAuthId)
-        .eq('status', 'accepted')
+        .eq('mentee_id', menteeId)
+        .ilike('status', 'accepted')
         .order('created_at', { ascending: false });
-
-      console.log("Fetched student mentors:", data);
 
       if (error) {
         console.error("Error fetching student mentors:", error);
-        Alert.alert("Error", `Could not load accepted mentors: ${error.message}`);
+        Alert.alert("Error", "Could not load accepted mentors");
         setRequests([]);
-      } else if (data) {
-        setRequests(data as MentorshipRequest[]);
-      } else {
-        setRequests([]);
+        setIsLoading(false);
+        return;
       }
+
+      if (!data || data.length === 0) {
+        setRequests([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch user details for mentors using separate queries
+      const combinedData = await Promise.all(data.map(async (req) => {
+        try {
+          // Get mentor data
+          const { data: mentorData } = await supabase
+            .from('mentors')
+            .select('userid')
+            .eq('mentorid', req.mentor_id)
+            .single();
+
+          if (mentorData?.userid) {
+            // Get user data
+            const { data: userData } = await supabase
+              .from('users')
+              .select('name, email')
+              .eq('id', mentorData.userid)
+              .single();
+
+            return {
+              ...req,
+              mentor: userData ? [{ name: userData.name, email: userData.email }] : []
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching mentor data for request:', req.id, error);
+        }
+
+        return {
+          ...req,
+          mentor: []
+        };
+      }));
+
+      setRequests(combinedData as MentorshipRequest[]);
+      console.log("Fetched student mentors:", combinedData);
     } catch (e: any) {
       console.error("Unexpected error fetching student mentors:", e);
       Alert.alert("Error", "An unexpected error occurred while fetching mentors.");
@@ -146,7 +241,7 @@ function NotificationsScreen() {
   async function handleRequestAction(requestId: string, newStatus: 'accepted' | 'declined') {
     try {
       const { data: updateData, error } = await supabase
-        .from('request_mentorship')
+        .from('mentorship_requests')
         .update({ status: newStatus })
         .eq('id', requestId)
         .select();
@@ -179,11 +274,11 @@ function NotificationsScreen() {
   return (
     <ScrollView className="flex-1 bg-gray-100">
       <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-2xl font-bold ml-4 mt-6 mb-4">
-        {role && role.toLowerCase() === "tutor" ? "Mentorship Requests" : "Your Accepted Mentors"}
+        {role && role.toLowerCase() === "mentor" ? "Mentorship Requests" : "Your Accepted Mentors"}
       </Text>
       {requests.length === 0 ? (
         <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-center text-gray-500 mt-5">
-          {role && role.toLowerCase() === "tutor"
+          {role && role.toLowerCase() === "mentor"
             ? "No mentorship requests found."
             : "No accepted mentors found."}
         </Text>
@@ -198,17 +293,17 @@ function NotificationsScreen() {
               />
               <View className="ml-4 flex-1">
                 <Text style={{ fontFamily: "OpenSans-Bold" }} className="text-base">
-                  {role && role.toLowerCase() === "tutor"
-                    ? `Student: ${request.students?.name || 'Unknown Student'}`
-                    : `Mentor: ${request.tutors?.name || 'Unknown Mentor'}`}
+                  {role && role.toLowerCase() === "mentor"
+                    ? `Student: ${request.mentee?.[0]?.name || 'Unknown Student'}`
+                    : `Mentor: ${request.mentor?.[0]?.name || 'Unknown Mentor'}`}
                 </Text>
                 <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-sm text-gray-600 mt-1">
-                  {role && role.toLowerCase() === "tutor"
-                    ? `Email: ${request.students?.email || 'N/A'}`
-                    : `Email: ${request.tutors?.email || 'N/A'}`}
+                  {role && role.toLowerCase() === "mentor"
+                    ? `Email: ${request.mentee?.[0]?.email || 'N/A'}`
+                    : `Email: ${request.mentor?.[0]?.email || 'N/A'}`}
                 </Text>
                 <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-sm text-gray-600 mt-1">
-                  {role && role.toLowerCase() === "tutor"
+                  {role && role.toLowerCase() === "mentor"
                     ? `Requested on: ${new Date(request.created_at).toLocaleDateString()}`
                     : `Accepted on: ${new Date(request.created_at).toLocaleDateString()}`}
                 </Text>
@@ -224,7 +319,7 @@ function NotificationsScreen() {
                 </Text>
               </View>
             </View>
-            {role && role.toLowerCase() === "tutor" && request.status === 'pending' && (
+            {role && role.toLowerCase() === "mentor" && request.status.toLowerCase() === 'pending' && (
               <View className="flex-row justify-end mt-3 gap-x-3">
                 <Button
                   title="Decline"
