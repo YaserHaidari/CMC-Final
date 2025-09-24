@@ -577,6 +577,42 @@ function CyberMatchScreen() {
     }
   };
 
+  const checkExistingMentorshipRequests = async () => {
+    if (!currentMentee) {
+      return null;
+    }
+
+    try {
+      // Check for existing mentorship requests (pending or accepted)
+      const { data: existingRequests, error } = await supabase
+        .from('mentorship_requests')
+        .select(`
+          id,
+          status,
+          created_at,
+          mentor_id,
+          mentee_id,
+          message
+        `)
+        .eq('mentee_id', currentMentee.menteeid)
+        .in('status', ['Pending', 'Accepted', 'pending', 'accepted'])
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error checking existing requests:', error);
+        console.log('Error details:', error.message, error.code);
+        return [];
+      }
+
+      console.log('Existing requests found:', existingRequests);
+      console.log('Number of existing requests:', existingRequests?.length || 0);
+      return existingRequests || [];
+    } catch (error) {
+      console.error('Error in checkExistingMentorshipRequests:', error);
+      return null;
+    }
+  };
+
   const startMatching = async () => {
     console.log('🚀 Starting matching process...');
     debugLog('🚀 Starting matching process...');
@@ -589,6 +625,78 @@ function CyberMatchScreen() {
     
     console.log('👤 Current mentee for matching:', currentMentee.user_id);
     
+    // Check for existing mentorship requests first
+    console.log('🔍 Checking for existing mentorship requests...');
+    const existingRequests = await checkExistingMentorshipRequests();
+    
+    console.log('Checking existing requests for mentee:', currentMentee.menteeid);
+    console.log('Found existing requests:', existingRequests);
+    
+    if (existingRequests && existingRequests.length > 0) {
+      const pendingRequests = existingRequests.filter(req => 
+        req.status === 'Pending' || req.status === 'pending'
+      );
+      const acceptedRequests = existingRequests.filter(req => 
+        req.status === 'Accepted' || req.status === 'accepted'
+      );
+
+      console.log('Pending requests:', pendingRequests);
+      console.log('Accepted requests:', acceptedRequests);
+
+      let alertMessage = '';
+      let alertTitle = '';
+
+      if (acceptedRequests.length > 0) {
+        alertTitle = 'Active Mentorship Found';
+        alertMessage = `You already have ${acceptedRequests.length} accepted mentorship${acceptedRequests.length > 1 ? 's' : ''}. ` +
+          'Consider completing your current mentorship before seeking new mentors, or check your notifications to connect with your existing mentor(s).';
+      } else if (pendingRequests.length > 0) {
+        alertTitle = 'Pending Requests Found';
+        alertMessage = `You have ${pendingRequests.length} pending mentorship request${pendingRequests.length > 1 ? 's' : ''} waiting for approval. ` +
+          'Please wait for your current requests to be reviewed, or check your notifications for updates. ' +
+          'You can continue to find additional mentors if needed.';
+      }
+
+      if (alertMessage) {
+        console.log('Showing alert:', alertTitle, alertMessage);
+        Alert.alert(
+          alertTitle,
+          alertMessage,
+          [
+            {
+              text: 'Check Notifications',
+              onPress: () => {
+                // You might want to navigate to notifications screen here
+                console.log('Navigate to notifications');
+              }
+            },
+            {
+              text: acceptedRequests.length > 0 ? 'Cancel' : 'Continue Anyway',
+              style: acceptedRequests.length > 0 ? 'cancel' : 'default',
+              onPress: () => {
+                if (acceptedRequests.length > 0) {
+                  // Don't proceed if they have accepted mentors
+                  console.log('Blocking due to accepted mentors');
+                  return;
+                } else {
+                  // Allow them to continue if they only have pending requests
+                  console.log('Allowing to continue despite pending requests');
+                  proceedWithMatching();
+                }
+              }
+            }
+          ]
+        );
+        return;
+      }
+    }
+    
+    console.log('✅ No blocking requests found, proceeding with matching...');
+    // If no existing requests or user chose to continue, proceed with matching
+    proceedWithMatching();
+  };
+
+  const proceedWithMatching = async () => {
     const matches = await getMentorMatches();
     console.log('📊 Matches received:', matches?.length || 0, 'matches');
     debugLog('Matches received:', matches);

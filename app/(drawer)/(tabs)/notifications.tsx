@@ -175,8 +175,30 @@ function NotificationsScreen() {
         };
       }));
 
-      setRequests(combinedData as MentorshipRequest[]);
-      console.log("Fetched tutor requests:", combinedData);
+      // Filter to show only the most recent request from each mentee
+      const uniqueRequests = combinedData.reduce((acc, current) => {
+        const existingRequest = acc.find(req => req.mentee_id === current.mentee_id);
+        
+        if (!existingRequest) {
+          // If no existing request from this mentee, add it
+          acc.push(current);
+        } else {
+          // If there's an existing request, keep the more recent one
+          const currentDate = new Date(current.created_at);
+          const existingDate = new Date(existingRequest.created_at);
+          
+          if (currentDate > existingDate) {
+            // Replace with more recent request
+            const index = acc.findIndex(req => req.mentee_id === current.mentee_id);
+            acc[index] = current;
+          }
+        }
+        
+        return acc;
+      }, [] as MentorshipRequest[]);
+
+      setRequests(uniqueRequests);
+      console.log("Fetched tutor requests (unique per mentee):", uniqueRequests);
     } catch (e: any) {
       console.error("Unexpected error fetching tutor requests:", e);
       Alert.alert("Error", "An unexpected error occurred while fetching requests.");
@@ -422,8 +444,8 @@ function NotificationsScreen() {
               </View>
             </View>
 
-            {/* Message Section */}
-            {request.message && (
+            {/* Message Section - Only show for mentors */}
+            {request.message && role && role.toLowerCase() === "mentor" && (
               <View style={styles.messageSection}>
                 <Text style={styles.messageLabel}>💬 Message:</Text>
                 <View style={styles.messageContainer}>
