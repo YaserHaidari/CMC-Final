@@ -1,131 +1,163 @@
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, Button, ScrollView, Image } from "react-native";
-import { getAuth } from "firebase/auth";
-import {
-  getDatabase,
-  ref,
-  onValue,
-  update,
-  push,
-  child,
-} from "firebase/database";
+import { View, Text, TextInput, ScrollView, Image, TouchableOpacity } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import UserInfo from "../firebase/getUserInfo";
 import { supabase } from "@/app/supabase/initiliaze";
-import Ionicons from '@expo/vector-icons/Ionicons';
-import Feather from '@expo/vector-icons/Feather';
+import Ionicons from "@expo/vector-icons/Ionicons";
+import Feather from "@expo/vector-icons/Feather";
 import CustomHeader from "@/components/CustomHeader";
 
 function HomeScreen() {
-  const [welcomeMessage, setWelcomeMessage] = useState<String>("");
+  const [welcomeMessage, setWelcomeMessage] = useState<string>("");
   const [textMessage, setTextMessage] = useState<string>("");
-  const [messages, setMessages] = useState([]);
-  const [photoUrl, setPhotoUrl] = useState(null);
-  const [tutors, setTutors] = useState([]);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [mentors, setMentors] = useState<any[]>([]);
+  const [mentorVotes, setMentorVotes] = useState<{ [id: number]: { up: number; down: number } }>({});
+  const [userVotes, setUserVotes] = useState<{ [id: number]: 1 | -1 | 0 }>({});
+  const [currentMenteeId, setCurrentMenteeId] = useState<number | null>(null);
+
   useEffect(() => {
-    fetchUser();
     initializeUser();
-    finitializeSupabase();
+    fetchMentors();
   }, []);
 
+  // Initialize Supabase user
   async function initializeUser() {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user) return;
 
-    if (currentUser) {
-      const userCredentials = {
-        email: currentUser.email,
-        uid: currentUser.uid,
-      };
+    // Save credentials locally
+    const userCredentials = { email: user.email, id: user.id };
+    await AsyncStorage.setItem("USERCREDENTIALS", JSON.stringify(userCredentials));
 
-      try {
-        await AsyncStorage.setItem(
-          "USERCREDENTIALS",
-          JSON.stringify(userCredentials)
-        );
-        console.log("User credentials saved to AsyncStorage");
-      } catch (error) {
-        console.error("Error saving user credentials:", error);
-      }
+    setWelcomeMessage(user.email || "");
+    if (user.user_metadata?.avatar_url) {
+      setPhotoUrl(user.user_metadata.avatar_url);
+    }
+
+    // Get mentee row using email
+    const { data: menteeData, error: menteeError } = await supabase
+      .from("mentees")
+      .select("menteeid, name")
+      .eq("email", user.email)
+      .single();
+
+    if (!menteeError && menteeData) {
+      setCurrentMenteeId(menteeData.menteeid);
+      setWelcomeMessage(menteeData.name || user.email || "");
+    } else {
+      console.log("User is not registered as a mentee:", menteeError?.message);
     }
   }
 
-  async function fetchUser() {
-    const auth = getAuth();
-    console.log(auth.currentUser);
-    if (auth.currentUser?.displayName && auth.currentUser.photoURL) {
-      setWelcomeMessage(auth.currentUser?.displayName);
-      if (photoUrl !== "") {
-        setPhotoUrl(auth.currentUser?.photoURL);
-      }
-      console.log(auth.currentUser.photoURL);
-    }
-  }
-
-  async function finitializeSupabase() {
+  // Fetch verified mentors and initialize votes
+  async function fetchMentors() {
     try {
-      const { data, error } = await supabase.from("users").select("*");
-      if (error) {
-        console.log(error.message);
-        return;
+      const { data: mentorsData, error: mentorError } = await supabase
+        .from("mentors")
+        .select("*")
+        .eq("active", true)
+        .eq("verified", true);
+
+      if (mentorError || !mentorsData) return;
+      setMentors(mentorsData);
+
+      const votes: any = {};
+      mentorsData.forEach((mentor) => {
+        votes[mentor.mentorid] = {
+          up: mentor.upvotes || 0,
+          down: mentor.downvotes || 0,
+        };
+      });
+      setMentorVotes(votes);
+
+      if (currentMenteeId) {
+        const { data: userVoteData } = await supabase
+          .from("mentor_votes")
+          .select("*")
+          .eq("userid", currentMenteeId);
+
+        const userVoteState: any = {};
+        mentorsData.forEach((mentor) => {
+          const voteRecord = userVoteData?.find((v: any) => v.mentorid === mentor.mentorid);
+          userVoteState[mentor.mentorid] = voteRecord?.vote || 0;
+        });
+        setUserVotes(userVoteState);
       }
-      setTutors(data.filter((item) => item.user_type == 'tutor'))
-      console.log(tutors);
     } catch (error) {
       console.log(error);
     }
   }
-  useEffect(() => {
-    fetchData();
-  }, []);
 
-  async function fetchData() {
-    const db = getDatabase();
-    const dbRef = ref(db, "users");
-    onValue(dbRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        setMessages(Object.values(data));
-      }
-    });
-  }
+  // Handle vote
+  const handleVote = async (mentorId: number, vote: 1 | -1) => {
+    if (!currentMenteeId) return;
 
-  async function sendMessage() {
-    const userInfo = UserInfo();
-    if (!userInfo) {
-      console.error("User info not found");
-      return;
-    }
-
-    const { name, uid, photoUrl } = userInfo;
-    const db = getDatabase();
-    const newMsgKey = push(child(ref(db), "users")).key; // Generate a unique key for the message
-
-    // Construct the message object
-    const newMessage = {
-      id: newMsgKey,
-      userId: uid,
-      userName: name,
-      photoUrl: photoUrl,
-      message: textMessage, // The message from the input field
-      timestamp: Date.now(), // Add a timestamp
-    };
-
-    // Update the database with the new message
-    const updates = {};
-    updates[`users/${newMsgKey}`] = newMessage;
+    const prevVote = userVotes[mentorId] || 0;
+    let newVote: 1 | -1 | 0 = prevVote === vote ? 0 : vote; // toggle if same pressed
 
     try {
-      await update(ref(db), updates);
-      console.log("Message sent successfully!");
-      setTextMessage(""); // Clear the input field after sending the message
-    } catch (error) {
-      console.error("Error sending message:", error);
+      if (newVote === 0) {
+        const { error: delErr } = await supabase
+          .from("mentor_votes")
+          .delete()
+          .eq("mentorid", Number(mentorId))
+          .eq("userid", currentMenteeId);
+        if (delErr) {
+          console.log("Delete error:", delErr.message);
+          return;
+        }
+      } else {
+        const { error: upsertErr } = await supabase
+          .from("mentor_votes")
+          .upsert(
+            { mentorid: Number(mentorId), userid: currentMenteeId, vote: newVote },
+            { onConflict: "mentorid,userid" }
+          );
+        if (upsertErr) {
+          console.log("Upsert error:", upsertErr.message);
+          return;
+        }
+      }
+
+      // Count votes from mentor_votes table
+      const { data: votes, error: countErr } = await supabase
+        .from("mentor_votes")
+        .select("vote")
+        .eq("mentorid", Number(mentorId));
+
+      if (countErr) {
+        console.log("Count error:", countErr.message);
+        return;
+      }
+
+      const upvotes = votes.filter((v) => v.vote === 1).length;
+      const downvotes = votes.filter((v) => v.vote === -1).length;
+
+      // Update mentor row
+      const { error: updateErr } = await supabase
+        .from("mentors")
+        .update({ upvotes, downvotes })
+        .eq("mentorid", Number(mentorId));
+
+      if (updateErr) {
+        console.log("Mentors update error:", updateErr.message);
+        return;
+      }
+
+      // Update local state
+      setMentorVotes({
+        ...mentorVotes,
+        [mentorId]: { up: upvotes, down: downvotes },
+      });
+      setUserVotes({ ...userVotes, [mentorId]: newVote });
+    } catch (err) {
+      console.log("handleVote crashed:", err);
     }
-  }
+  };
 
   return (
-    <View className=" flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -135,143 +167,63 @@ function HomeScreen() {
         <Text className="text-4xl font-bold font-Title text-black text-center pt-5">
           Coffee Meets Careers {welcomeMessage}
         </Text>
-        {photoUrl ? (
-          <Image
-            style={{ width: 200, height: 200 }}
-            source={{ uri: photoUrl }}
-            width={40}
-            height={40}
-          />
-        ) : (
-          ""
-        )}
-        <View className={"flex-1 mt-4 mx-8 mb-5"}>
-          <View
-            className={
-              "flex-row items-center bg-white rounded-full px-5 h-16 border border-gray-400"
-            }
-          >
-            <Ionicons name="search-outline" size={24} color="black" />
+        {photoUrl && <Image style={{ width: 200, height: 200 }} source={{ uri: photoUrl }} />}
 
+        <View className="flex-1 mt-4 mx-8 mb-5">
+          <View className="flex-row items-center bg-white rounded-full px-5 h-16 border border-gray-400">
+            <Ionicons name="search-outline" size={24} color="black" />
             <TextInput
-                value={textMessage}
-                onChangeText={(msg) => setTextMessage(msg)}
-                placeholder="Search for a mentor..."
-                className="flex-1 ml-1.5 font-Text text-lg font-normal text-gray-800"
-                textAlignVertical="center"
+              value={textMessage}
+              onChangeText={(msg) => setTextMessage(msg)}
+              placeholder="Search for a mentor..."
+              className="flex-1 ml-1.5 font-Text text-lg font-normal text-gray-800"
             />
             <Feather name="filter" size={24} color="black" />
           </View>
         </View>
-          {/*
-          <Button onPress={sendMessage} title="Send" />
-            {messages.map((item, index) => {
-              return (
-                <View key={index}>
-                  <Text>
-                    {item.userName}: {item.message}
-                  </Text>
-                </View>
-              );
-            })}
-          */}
 
-          <Text className={"text-lg font-extrabold font-Menu ml-7 mb-4"}>
-            Recent Updates
-          </Text>
+        <Text className="text-lg font-extrabold font-Menu ml-7 mb-4">Verified Mentors</Text>
 
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row gap-5 ml-7 mb-5">
-              <Image
-                source={{uri: "https://avatar.iran.liara.run/public/"}}
-                style={{width:80,height:80,}}
-                className="rounded-full border-2 border-gray-200"
-             />
-              <Image
-                  source={{uri: "https://avatar.iran.liara.run/public/"}}
-                  style={{width:80,height:80,}}
-                  className="rounded-full border-2 border-gray-200"
-              />
-              <Image
-                  source={{uri: "https://avatar.iran.liara.run/public/"}}
-                  style={{width:80,height:80,}}
-                  className="rounded-full border-2 border-gray-200"
-              />
-              <Image
-                  source={{uri: "https://avatar.iran.liara.run/public/"}}
-                  style={{width:80,height:80,}}
-                  className="rounded-full border-2 border-gray-200"
-              />
-              <Image
-                  source={{uri: "https://avatar.iran.liara.run/public/"}}
-                  style={{width:80,height:80,}}
-                  className="rounded-full border-2 border-gray-200"
-              />
-              <Image
-                  source={{uri: "https://avatar.iran.liara.run/public/"}}
-                  style={{width:80,height:80,}}
-                  className="rounded-full border-2 border-gray-300"
-              />
-
-            </View>
-          </ScrollView>
-
-          <Text className={"text-lg font-extrabold font-Menu ml-7 mb-4"}>
-            Recommended
-          </Text>
-          {tutors.map((item, index) => {
-            return (
-              <View
-                key={index}
-                className="bg-white rounded-xl mb-4 mx-7 border border-stone-400"
-              >
-                <View
-                className="flex-row"
-                >
-                {item.photoURL && (
-                  <Image
-                    source={{ uri: item.photoURL }}
-                    className="h-14 w-14 rounded-full m-2"
-
-                  />
+        {mentors.map((mentor) => (
+          <View key={mentor.mentorid} className="bg-white rounded-xl mb-4 mx-7 border p-3">
+            <View className="flex-row">
+              {mentor.photo_url && (
+                <Image source={{ uri: mentor.photo_url }} className="h-14 w-14 rounded-full m-2" />
+              )}
+              <View className="flex-1 bg-stone-200 m-2 rounded-lg p-2">
+                <Text className="font-Menu font-semibold text-black">{mentor.name}</Text>
+                {mentor.bio && <Text className="text-gray-700">{mentor.bio}</Text>}
+                {mentor.skills && <Text className="text-gray-700">Skills: {mentor.skills.join(", ")}</Text>}
+                {mentor.specialization_roles && (
+                  <Text className="text-gray-700">Role: {mentor.specialization_roles.join(", ")}</Text>
                 )}
-
-                <View
-                className=" flex-1 bg-stone-200 m-2 rounded-lg items-center"
-                >
-                  <Text
-                  className="font-Menu font-semibold text-black p-3"
-                  >
-                    "This is a sample bio"
-                  </Text>
-                  <Text
-                      className="font-Text font-normal text-gray-700 pr-3 pl-3"
-                  >
-                    {item.bio}
-                  </Text>
-                </View>
-                </View>
-
-
-                <View
-                className="flex-1 justify-end ml-20"
-                >
-                  <Text
-                    className={
-                      "text-xl font-medium font-Title text-gray-800"
-                    }
-                  >
-                    {item.name}
-                  </Text>
-                  <Text className={"text-[14px] font-Menu font-light text-gray-700 mb-1.5"}>
-                    Tutor since: {new Date(item.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
+                {mentor.hourly_rate && <Text className="text-gray-700">Hourly Rate: ${mentor.hourly_rate}</Text>}
+                {mentor.experience_level && <Text className="text-gray-700">Experience: {mentor.experience_level}</Text>}
+                {mentor.location && <Text className="text-gray-700">Location: {mentor.location}</Text>}
               </View>
-            );
-          })}
+            </View>
 
+            <View className="flex-row mt-2 items-center justify-end mr-4">
+              <TouchableOpacity onPress={() => handleVote(mentor.mentorid, 1)}>
+                <Ionicons
+                  name="thumbs-up"
+                  size={24}
+                  color={userVotes[mentor.mentorid] === 1 ? "green" : "gray"}
+                />
+              </TouchableOpacity>
+              <Text className="ml-2">{mentorVotes[mentor.mentorid]?.up || 0}</Text>
+
+              <TouchableOpacity onPress={() => handleVote(mentor.mentorid, -1)} className="ml-4">
+                <Ionicons
+                  name="thumbs-down"
+                  size={24}
+                  color={userVotes[mentor.mentorid] === -1 ? "red" : "gray"}
+                />
+              </TouchableOpacity>
+              <Text className="ml-2">{mentorVotes[mentor.mentorid]?.down || 0}</Text>
+            </View>
+          </View>
+        ))}
       </ScrollView>
     </View>
   );

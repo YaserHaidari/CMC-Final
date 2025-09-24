@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
+import { MenuProvider } from 'react-native-popup-menu'; 
 
 function RootLayout() {
   const [loaded, error] = useFonts({
@@ -57,28 +58,28 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack>
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerBackVisible: false,
-            headerTitle: '',
-          }}
-        />
+      <MenuProvider>
+        <Stack>
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerBackVisible: false,
+              headerTitle: '',
+            }}
+          />
 
-        <Stack.Screen name="register" options={{ title: "Register" }} />
-        <Stack.Screen name="home" options={{ title: "Home" }} />
-        <Stack.Screen name="login" options={{ title: "Login" }} />
-        <Stack.Screen name="pin" options={{ title: "Enter PIN" }} />
-        <Stack.Screen name="profile" options={{ title: "Profile" }} />
-        <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
-        <Stack.Screen name="settings" options={{ title: "Settings" }} />
-        <Stack.Screen name="findmentors" options={{ title: "Find Mentors" }} />
-        <Stack.Screen name="cybermatch" options={{ title: "Cyber Match" }} />
-        <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
-        <Stack.Screen name="writetestimonials" options={{ title: "Write Testimonials" }} />
-        <Stack.Screen name="testimonials" options={{ title: "Testimonials" }} />
-      </Stack>
+          <Stack.Screen name="register" options={{ title: "Register" }} />
+          <Stack.Screen name="home" options={{ title: "Home" }} />
+          <Stack.Screen name="login" options={{ title: "Login" }} />
+          <Stack.Screen name="pin" options={{ title: "Enter PIN" }} />
+          <Stack.Screen name="profile" options={{ title: "Profile" }} />
+          <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
+          <Stack.Screen name="settings" options={{ title: "Settings" }} />
+          <Stack.Screen name="findmentors" options={{ title: "Find Mentors" }} />
+          <Stack.Screen name="cybermatch" options={{ title: "Cyber Match" }} />
+          <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
+        </Stack>
+      </MenuProvider>
     </GestureHandlerRootView>
   );
 }
