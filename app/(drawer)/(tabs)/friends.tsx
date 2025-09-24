@@ -86,94 +86,134 @@ export default function Friends() {
 
         if (currentUserData.user_type === "Mentor") {
           // If current user is a mentor, show mentees with approved requests
-          const { data: mentorshipData, error: mentorshipError } = await supabase
-            .from("mentorship_requests")
-            .select(`
-              status,
-              mentees!inner(menteeid, user_id),
-              users!inner(id, name, email, user_type)
-            `)
-            .eq("status", "Approved")
-            .eq("mentors.userid", currentAuthId);
+          // First get mentor's mentorid using auth_user_id
+          const { data: mentorData, error: mentorLookupError } = await supabase
+            .from("mentors")
+            .select("mentorid")
+            .eq("user_id", currentAuthId)
+            .single();
 
-          if (mentorshipError) {
-            console.log("Error fetching mentor relationships:", mentorshipError);
-            // Fallback: try with mentor_id if the above doesn't work
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from("mentorship_requests")
-              .select(`
-                status,
-                mentee_id,
-                mentees!inner(menteeid, user_id),
-                users!inner(id, name, email, user_type)
-              `)
-              .eq("status", "Approved");
-            
-            if (!fallbackError && fallbackData) {
-              approvedFriends = fallbackData.map((req: any) => ({
-                id: req.users.id,
-                name: req.users.name ?? "Unknown User",
-                email: req.users.email ?? "",
-                user_type: req.users.user_type ?? "Student",
-                auth_id: req.users.id.toString(),
-                status: req.status
-              }));
-            }
-          } else if (mentorshipData) {
-            approvedFriends = mentorshipData.map((req: any) => ({
-              id: req.users.id,
-              name: req.users.name ?? "Unknown User",
-              email: req.users.email ?? "",
-              user_type: req.users.user_type ?? "Student", 
-              auth_id: req.users.id.toString(),
-              status: req.status
-            }));
+          if (mentorLookupError || !mentorData) {
+            console.log("Could not find mentor profile:", mentorLookupError);
+            setFriends([]);
+            return;
           }
+
+          // Get accepted mentorship requests for this mentor
+          const { data: requestsData, error: requestsError } = await supabase
+            .from("mentorship_requests")
+            .select("mentee_id, status")
+            .eq("mentor_id", mentorData.mentorid)
+            .eq("status", "Accepted");
+
+          if (requestsError || !requestsData || requestsData.length === 0) {
+            console.log("No accepted mentorship requests found:", requestsError);
+            setFriends([]);
+            return;
+          }
+
+          // Get mentee details and their user info
+          const menteePromises = requestsData.map(async (req) => {
+            try {
+              // Get mentee data
+              const { data: menteeData, error: menteeError } = await supabase
+                .from("mentees")
+                .select("user_id")
+                .eq("menteeid", req.mentee_id)
+                .single();
+
+              if (menteeError || !menteeData) return null;
+
+              // Get user data using auth_user_id
+              const { data: userData, error: userError } = await supabase
+                .from("users")
+                .select("id, name, email, user_type, auth_user_id")
+                .eq("auth_user_id", menteeData.user_id)
+                .single();
+
+              if (userError || !userData) return null;
+
+              return {
+                id: userData.id,
+                name: userData.name ?? "Unknown User",
+                email: userData.email ?? "",
+                user_type: userData.user_type ?? "Student",
+                auth_id: userData.auth_user_id,
+                status: req.status
+              };
+            } catch (error) {
+              console.error("Error fetching mentee data:", error);
+              return null;
+            }
+          });
+
+          const menteeResults = await Promise.all(menteePromises);
+          approvedFriends = menteeResults.filter(result => result !== null) as Friend[];
         } else {
           // If current user is a mentee, show mentors with approved requests
-          const { data: mentorshipData, error: mentorshipError } = await supabase
-            .from("mentorship_requests")
-            .select(`
-              status,
-              mentors!inner(mentorid, userid),
-              users!inner(id, name, email, user_type)
-            `)
-            .eq("status", "Approved")
-            .eq("mentees.user_id", currentAuthId);
+          // First get mentee's menteeid using auth_user_id
+          const { data: menteeData, error: menteeLookupError } = await supabase
+            .from("mentees")
+            .select("menteeid")
+            .eq("user_id", currentAuthId)
+            .single();
 
-          if (mentorshipError) {
-            console.log("Error fetching mentee relationships:", mentorshipError);
-            // Fallback: try a different approach
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from("mentorship_requests")
-              .select(`
-                status,
-                mentor_id,
-                mentors!inner(mentorid, userid),
-                users!inner(id, name, email, user_type)
-              `)
-              .eq("status", "Approved");
-            
-            if (!fallbackError && fallbackData) {
-              approvedFriends = fallbackData.map((req: any) => ({
-                id: req.users.id,
-                name: req.users.name ?? "Unknown User",
-                email: req.users.email ?? "",
-                user_type: req.users.user_type ?? "Mentor",
-                auth_id: req.users.id.toString(),
-                status: req.status
-              }));
-            }
-          } else if (mentorshipData) {
-            approvedFriends = mentorshipData.map((req: any) => ({
-              id: req.users.id,
-              name: req.users.name ?? "Unknown User",
-              email: req.users.email ?? "",
-              user_type: req.users.user_type ?? "Mentor",
-              auth_id: req.users.id.toString(),
-              status: req.status
-            }));
+          if (menteeLookupError || !menteeData) {
+            console.log("Could not find mentee profile:", menteeLookupError);
+            setFriends([]);
+            return;
           }
+
+          // Get accepted mentorship requests for this mentee
+          const { data: requestsData, error: requestsError } = await supabase
+            .from("mentorship_requests")
+            .select("mentor_id, status")
+            .eq("mentee_id", menteeData.menteeid)
+            .eq("status", "Accepted");
+
+          if (requestsError || !requestsData || requestsData.length === 0) {
+            console.log("No accepted mentorship requests found:", requestsError);
+            setFriends([]);
+            return;
+          }
+
+          // Get mentor details and their user info
+          const mentorPromises = requestsData.map(async (req) => {
+            try {
+              // Get mentor data
+              const { data: mentorData, error: mentorError } = await supabase
+                .from("mentors")
+                .select("user_id")
+                .eq("mentorid", req.mentor_id)
+                .single();
+
+              if (mentorError || !mentorData) return null;
+
+              // Get user data using auth_user_id
+              const { data: userData, error: userError } = await supabase
+                .from("users")
+                .select("id, name, email, user_type, auth_user_id")
+                .eq("auth_user_id", mentorData.user_id)
+                .single();
+
+              if (userError || !userData) return null;
+
+              return {
+                id: userData.id,
+                name: userData.name ?? "Unknown User",
+                email: userData.email ?? "",
+                user_type: userData.user_type ?? "Mentor",
+                auth_id: userData.auth_user_id,
+                status: req.status
+              };
+            } catch (error) {
+              console.error("Error fetching mentor data:", error);
+              return null;
+            }
+          });
+
+          const mentorResults = await Promise.all(mentorPromises);
+          approvedFriends = mentorResults.filter(result => result !== null) as Friend[];
         }
 
         setFriends(approvedFriends);

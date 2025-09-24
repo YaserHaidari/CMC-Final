@@ -10,7 +10,8 @@ interface UserInfo {
 interface MentorshipRequest {
   id: string;
   created_at: string;
-  status: 'pending' | 'accepted' | 'declined' | 'Pending' | 'Accepted' | 'Declined'; // Support both cases
+  status: 'pending' | 'accepted' | 'declined' | 'Pending' | 'Accepted' | 'Declined';
+  message?: string;
   mentee_id: number;
   mentor_id: number;
   mentee?: UserInfo[];
@@ -120,6 +121,7 @@ function NotificationsScreen() {
           id,
           created_at,
           status,
+          message,
           mentee_id,
           mentor_id
         `)
@@ -193,6 +195,7 @@ function NotificationsScreen() {
           id,
           created_at,
           status,
+          message,
           mentee_id,
           mentor_id
         `)
@@ -335,65 +338,117 @@ function NotificationsScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-100">
-      <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-2xl font-bold ml-4 mt-6 mb-4">
-        {role && role.toLowerCase() === "mentor" ? "Mentorship Requests" : "Your Accepted Mentors"}
-      </Text>
-      {requests.length === 0 ? (
-        <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-center text-gray-500 mt-5">
-          {role && role.toLowerCase() === "mentor"
-            ? "No mentorship requests found."
-            : "No accepted mentors found."}
+    <ScrollView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>
+          {role && role.toLowerCase() === "mentor" ? "🎓 Mentorship Requests" : "👨‍🏫 Your Mentors"}
         </Text>
+        <Text style={styles.headerSubtitle}>
+          {role && role.toLowerCase() === "mentor" 
+            ? "Students seeking your guidance" 
+            : "Your accepted mentorship connections"}
+        </Text>
+      </View>
+
+      {requests.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>
+            {role && role.toLowerCase() === "mentor" ? "📬" : "🤝"}
+          </Text>
+          <Text style={styles.emptyTitle}>
+            {role && role.toLowerCase() === "mentor"
+              ? "No requests yet"
+              : "No mentors yet"}
+          </Text>
+          <Text style={styles.emptyDescription}>
+            {role && role.toLowerCase() === "mentor"
+              ? "When students request mentorship, they'll appear here."
+              : "When mentors accept your requests, they'll appear here."}
+          </Text>
+        </View>
       ) : (
         requests.map((request) => (
-          <View key={request.id} className="bg-white shadow-md rounded-lg mx-4 mb-4 p-4 border border-gray-200">
-            <View className="flex-row items-center">
-              <Image
-                source={require('../../../assets/images/icon.png')}
-                style={styles.avatar}
-                className="rounded-full"
-              />
-              <View className="ml-4 flex-1">
-                <Text style={{ fontFamily: "OpenSans-Bold" }} className="text-base">
+          <View key={request.id} style={styles.requestCard}>
+            {/* Status Badge */}
+            <View style={[
+              styles.statusBadge,
+              request.status.toLowerCase() === 'pending' && styles.pendingBadge,
+              request.status.toLowerCase() === 'accepted' && styles.acceptedBadge,
+              request.status.toLowerCase() === 'declined' && styles.declinedBadge,
+            ]}>
+              <Text style={styles.statusText}>
+                {request.status === 'pending' ? '⏳' : 
+                 request.status === 'accepted' ? '✅' : '❌'} {request.status.toUpperCase()}
+              </Text>
+            </View>
+
+            {/* User Info */}
+            <View style={styles.userSection}>
+              <View style={styles.avatarContainer}>
+                <Image
+                  source={{ uri: `https://avatar.iran.liara.run/public/boy?id=${request.mentee_id || request.mentor_id}` }}
+                  style={styles.avatar}
+                />
+                <View style={[
+                  styles.roleIndicator,
+                  role && role.toLowerCase() === "mentor" ? styles.studentIndicator : styles.mentorIndicator
+                ]}>
+                  <Text style={styles.roleText}>
+                    {role && role.toLowerCase() === "mentor" ? "S" : "M"}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>
                   {role && role.toLowerCase() === "mentor"
-                    ? `Student: ${request.mentee?.[0]?.name || 'Unknown Student'}`
-                    : `Mentor: ${request.mentor?.[0]?.name || 'Unknown Mentor'}`}
+                    ? request.mentee?.[0]?.name || 'Unknown Student'
+                    : request.mentor?.[0]?.name || 'Unknown Mentor'}
                 </Text>
-                <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-sm text-gray-600 mt-1">
+                <Text style={styles.userEmail}>
                   {role && role.toLowerCase() === "mentor"
-                    ? `Email: ${request.mentee?.[0]?.email || 'N/A'}`
-                    : `Email: ${request.mentor?.[0]?.email || 'N/A'}`}
+                    ? request.mentee?.[0]?.email || 'No email provided'
+                    : request.mentor?.[0]?.email || 'No email provided'}
                 </Text>
-                <Text style={{ fontFamily: "OpenSans-Regular" }} className="text-sm text-gray-600 mt-1">
-                  {role && role.toLowerCase() === "mentor"
-                    ? `Requested on: ${new Date(request.created_at).toLocaleDateString()}`
-                    : `Accepted on: ${new Date(request.created_at).toLocaleDateString()}`}
-                </Text>
-                <Text
-                  style={{ fontFamily: "OpenSans-Bold" }}
-                  className={`text-sm mt-1 ${
-                    request.status === 'pending' ? 'text-yellow-600' :
-                    request.status === 'accepted' ? 'text-green-600' :
-                    'text-red-600'
-                  }`}
-                >
-                  Status: {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                <Text style={styles.requestDate}>
+                  {role && role.toLowerCase() === "mentor" ? "📅 Requested" : "📅 Accepted"} on{' '}
+                  {new Date(request.created_at).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
                 </Text>
               </View>
             </View>
+
+            {/* Message Section */}
+            {request.message && (
+              <View style={styles.messageSection}>
+                <Text style={styles.messageLabel}>💬 Message:</Text>
+                <View style={styles.messageContainer}>
+                  <Text style={styles.messageText}>"{request.message}"</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Action Buttons */}
             {role && role.toLowerCase() === "mentor" && request.status.toLowerCase() === 'pending' && (
-              <View className="flex-row justify-end mt-3 gap-x-3">
-                <Button
-                  title="Decline"
-                  onPress={() => handleRequestAction(request.id, 'declined')}
-                  color="red"
-                />
-                <Button
-                  title="Accept"
-                  onPress={() => handleRequestAction(request.id, 'accepted')}
-                  color="green"
-                />
+              <View style={styles.actionButtons}>
+                <View style={styles.buttonContainer}>
+                  <Button
+                    title="❌ Decline"
+                    onPress={() => handleRequestAction(request.id, 'declined')}
+                    color="#EF4444"
+                  />
+                </View>
+                <View style={styles.buttonContainer}>
+                  <Button
+                    title="✅ Accept"
+                    onPress={() => handleRequestAction(request.id, 'accepted')}
+                    color="#10B981"
+                  />
+                </View>
               </View>
             )}
           </View>
@@ -404,15 +459,207 @@ function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    fontFamily: 'OpenSans-Bold',
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#64748B',
+    marginTop: 4,
+    fontFamily: 'OpenSans-Regular',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 8,
+    fontFamily: 'OpenSans-Bold',
+  },
+  emptyDescription: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontFamily: 'OpenSans-Regular',
+  },
+  requestCard: {
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    zIndex: 1,
+  },
+  pendingBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  acceptedBadge: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  declinedBadge: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#374151',
+    fontFamily: 'OpenSans-Bold',
+  },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 12,
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 3,
+    borderColor: '#E2E8F0',
+  },
+  roleIndicator: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  studentIndicator: {
+    backgroundColor: '#3B82F6',
+  },
+  mentorIndicator: {
+    backgroundColor: '#8B5CF6',
+  },
+  roleText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: 'white',
+    fontFamily: 'OpenSans-Bold',
+  },
+  userInfo: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 4,
+    fontFamily: 'OpenSans-Bold',
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 6,
+    fontFamily: 'OpenSans-Regular',
+  },
+  requestDate: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontFamily: 'OpenSans-Regular',
+  },
+  messageSection: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  messageLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 8,
+    fontFamily: 'OpenSans-Bold',
+  },
+  messageContainer: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  messageText: {
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 20,
+    fontStyle: 'italic',
+    fontFamily: 'OpenSans-Italic',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 12,
+  },
+  buttonContainer: {
+    flex: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
-  },
-  avatar: {
-    width: 60,
-    height: 60,
   },
 });
 
