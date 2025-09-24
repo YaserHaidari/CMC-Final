@@ -34,16 +34,25 @@ function HomeScreen() {
       setPhotoUrl(user.user_metadata.avatar_url);
     }
 
-    // Get mentee row using email
+    // Get mentee row using auth_user_id and get name from users table separately
     const { data: menteeData, error: menteeError } = await supabase
       .from("mentees")
-      .select("menteeid, name")
-      .eq("email", user.email)
+      .select("menteeid, user_id")
+      .eq("user_id", user.id)
       .single();
 
     if (!menteeError && menteeData) {
       setCurrentMenteeId(menteeData.menteeid);
-      setWelcomeMessage(menteeData.name);
+      
+      // Get user name from users table
+      const { data: userData } = await supabase
+        .from("users")
+        .select("name")
+        .eq("auth_user_id", menteeData.user_id)
+        .single();
+      
+      const userName = userData?.name || "User";
+      setWelcomeMessage(userName);
     } else {
       console.log("User is not registered as a mentee:", menteeError?.message);
     }

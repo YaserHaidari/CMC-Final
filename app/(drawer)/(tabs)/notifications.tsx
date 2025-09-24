@@ -10,7 +10,7 @@ interface UserInfo {
 interface MentorshipRequest {
   id: string;
   created_at: string;
-  status: 'pending' | 'accepted' | 'declined';
+  status: 'pending' | 'accepted' | 'declined' | 'Pending' | 'Accepted' | 'Declined'; // Support both cases
   mentee_id: number;
   mentor_id: number;
   mentee?: UserInfo[];
@@ -55,31 +55,15 @@ function NotificationsScreen() {
       setRole(userData.user_type);
 
       if (userData.user_type.toLowerCase() === "mentor") {
-        // Get mentor ID from mentors table
-        console.log("Looking for mentor with user_id:", userData.id);
+        // Get mentor ID from mentors table using auth_user_id (UUID)
+        console.log("Looking for mentor with auth_user_id:", session.user.id);
         let { data: mentorData, error: mentorError } = await supabase
           .from("mentors")
           .select("mentorid, user_id")
-          .eq("user_id", userData.id)
+          .eq("user_id", session.user.id)
           .single();
 
         console.log("Mentor lookup result:", { mentorData, mentorError });
-
-        // Fallback: If not found with users table ID, try with auth user ID for legacy records
-        if (mentorError || !mentorData) {
-          console.log("Trying fallback lookup with auth user ID:", session.user.id);
-          const fallbackResult = await supabase
-            .from("mentors")
-            .select("mentorid, user_id")
-            .eq("user_id", session.user.id)
-            .single();
-          
-          if (!fallbackResult.error && fallbackResult.data) {
-            console.log("Found mentor with fallback method:", fallbackResult.data);
-            mentorData = fallbackResult.data;
-            mentorError = null;
-          }
-        }
 
         if (mentorError || !mentorData) {
           // Try to find any mentors to debug
@@ -96,31 +80,15 @@ function NotificationsScreen() {
 
         fetchMentorshipRequestsForTutor(mentorData.mentorid);
       } else {
-        // Get mentee ID from mentees table
-        console.log("Looking for mentee with user_id:", userData.id);
+        // Get mentee ID from mentees table using auth_user_id (UUID)
+        console.log("Looking for mentee with auth_user_id:", session.user.id);
         let { data: menteeData, error: menteeError } = await supabase
           .from("mentees")
           .select("menteeid, user_id")
-          .eq("user_id", userData.id)
+          .eq("user_id", session.user.id)
           .single();
 
         console.log("Mentee lookup result:", { menteeData, menteeError });
-
-        // Fallback: If not found with users table ID, try with auth user ID for legacy records
-        if (menteeError || !menteeData) {
-          console.log("Trying fallback lookup with auth user ID:", session.user.id);
-          const fallbackResult = await supabase
-            .from("mentees")
-            .select("menteeid, user_id")
-            .eq("user_id", session.user.id)
-            .single();
-          
-          if (!fallbackResult.error && fallbackResult.data) {
-            console.log("Found mentee with fallback method:", fallbackResult.data);
-            menteeData = fallbackResult.data;
-            menteeError = null;
-          }
-        }
 
         if (menteeError || !menteeData) {
           // Try to find any mentees to debug
@@ -183,11 +151,11 @@ function NotificationsScreen() {
             .single();
 
           if (menteeData?.user_id) {
-            // Get user data
+            // Get user data using auth_user_id (UUID)
             const { data: userData } = await supabase
               .from('users')
               .select('name, email')
-              .eq('id', menteeData.user_id)
+              .eq('auth_user_id', menteeData.user_id)
               .single();
 
             return {
@@ -257,11 +225,11 @@ function NotificationsScreen() {
             .single();
 
           if (mentorData?.user_id) {
-            // Get user data
+            // Get user data using auth_user_id (UUID)
             const { data: userData } = await supabase
               .from('users')
               .select('name, email')
-              .eq('id', mentorData.user_id)
+              .eq('auth_user_id', mentorData.user_id)
               .single();
 
             return {
@@ -292,26 +260,69 @@ function NotificationsScreen() {
 
   async function handleRequestAction(requestId: string, newStatus: 'accepted' | 'declined') {
     try {
+      console.log('Updating request:', requestId, 'to status:', newStatus);
+      
+      // Capitalize first letter to match database format (Pending -> Accepted/Declined)
+      const capitalizedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+      
+      // First, verify the request exists and get current status
+      const { data: currentRequest, error: fetchError } = await supabase
+        .from('mentorship_requests')
+        .select('id, status, mentor_id')
+        .eq('id', requestId)
+        .single();
+
+      if (fetchError || !currentRequest) {
+        console.error('Request not found:', fetchError);
+        Alert.alert('Error', 'Request not found or you do not have permission to update it.');
+        return;
+      }
+
+      console.log('Current request data:', currentRequest);
+
+      // Update the request
       const { data: updateData, error } = await supabase
         .from('mentorship_requests')
-        .update({ status: newStatus })
+        .update({ 
+          status: capitalizedStatus,
+          responded_at: new Date().toISOString(),
+          response_message: newStatus === 'accepted' 
+            ? 'Mentorship request has been accepted!' 
+            : 'Mentorship request has been declined.'
+        })
         .eq('id', requestId)
-        .select();
+        .select('*');
+
+      console.log('Update result:', { updateData, error });
 
       if (error) {
-        Alert.alert('Error', `Could not ${newStatus === 'accepted' ? 'accept' : 'decline'} the request. Details: ${error.message}`);
+        console.error('Update error:', error);
+        Alert.alert('Error', `Could not ${newStatus} the request. Details: ${error.message}`);
       } else if (updateData && updateData.length > 0) {
-        Alert.alert('Success', `Request ${newStatus}.`);
+        console.log('Update successful:', updateData[0]);
+        Alert.alert('Success', `Request ${newStatus} successfully!`);
+        
+        // Update local state with the actual returned status
         setRequests(prevRequests =>
           prevRequests.map(req =>
-            req.id === requestId ? { ...req, status: newStatus } : req
+            req.id === requestId ? { 
+              ...req, 
+              status: updateData[0].status.toLowerCase() as 'pending' | 'accepted' | 'declined'
+            } : req
           )
         );
+        
+        // Refresh the requests to get latest data
+        setTimeout(() => {
+          fetchCurrentSupabaseUserAndRequests();
+        }, 1000);
       } else {
+        console.log('No data returned from update');
         Alert.alert('Notice', `Request status may not have updated. Please refresh.`);
       }
     } catch (e: any) {
-      Alert.alert('Error', `An unexpected error occurred.`);
+      console.error('Unexpected error in handleRequestAction:', e);
+      Alert.alert('Error', `An unexpected error occurred: ${e.message}`);
     }
   }
 

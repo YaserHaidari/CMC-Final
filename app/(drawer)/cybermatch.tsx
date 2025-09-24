@@ -38,7 +38,7 @@ interface Mentee {
 interface MentorMatch {
   experience_gap_appropriate: any;
   mentorid: number;
-  user_id: number; // Keep as number for mentors (they use users.id)
+  user_id: string; // Changed to string since mentors now use UUID
   mentor_name: string;
   compatibility_score: number;
   skills_score: number;
@@ -640,11 +640,11 @@ function CyberMatchScreen() {
     }
     
     try {
-      // First get the mentor's integer ID from the mentors table
+      // First get the mentor's integer ID from the mentors table (mentors now use UUIDs)
       const { data: mentorData } = await supabase
         .from('mentors')
         .select('mentorid')
-        .eq('user_id', parseInt(mentorUserId))
+        .eq('user_id', mentorUserId)  // No need to parse as int - it's now UUID
         .single();
 
       if (!mentorData) {
@@ -654,7 +654,7 @@ function CyberMatchScreen() {
       console.log('Sending mentorship request:', {
         mentee_id: currentMentee.menteeid,
         mentor_id: mentorData.mentorid,
-        user_id: currentUser.id
+        user_id: currentUser.auth_user_id  // Use auth_user_id (UUID) for user_id
       });
 
       const { error } = await supabase
@@ -662,7 +662,7 @@ function CyberMatchScreen() {
         .insert({
           mentee_id: currentMentee.menteeid,
           mentor_id: mentorData.mentorid,
-          user_id: currentUser.id, // Now using bigint directly, no need to convert to string
+          user_id: currentUser.auth_user_id, // UUID for the requesting user
           status: 'Pending',
           message: 'Hi, I would like to request mentorship based on our compatibility match.'
         });
@@ -1179,7 +1179,7 @@ function CyberMatchScreen() {
                     shadowRadius: 4,
                     elevation: 4
                 }}
-                onPress={() => handleRequestMentorship(currentMatch.user_id.toString())}
+                onPress={() => handleRequestMentorship(currentMatch.user_id)}
                 >
                 <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, textAlign: 'center' }}>
                     Request Mentorship
