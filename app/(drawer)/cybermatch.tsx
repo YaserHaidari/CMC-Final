@@ -20,7 +20,7 @@ debugLog('Debug logging is working');
 
 interface Mentee {
   menteeid: number;
-  user_id: string;
+  user_id: string; // Back to string since it's a UUID
   skills: string[];
   target_roles: string[];
   current_level: string;
@@ -38,7 +38,7 @@ interface Mentee {
 interface MentorMatch {
   experience_gap_appropriate: any;
   mentorid: number;
-  user_id: string;
+  user_id: number; // Keep as number for mentors (they use users.id)
   mentor_name: string;
   compatibility_score: number;
   skills_score: number;
@@ -61,11 +61,7 @@ interface MentorMatch {
   };
 }
 
-const DEMO_MENTEE_IDS = [
-  "09c6b04d-bcc4-479a-a319-6230ec8be743", 
-  "dc7ca7f6-d6ba-493d-b697-1ec86173bca7",  
-  "c710347f-d217-42e0-8f94-aaa30aa28270",
-];
+
 
 function CyberMatchScreen() {
   debugLog('🏗️ CyberMatchScreen component initializing');
@@ -76,9 +72,107 @@ function CyberMatchScreen() {
   const [mentorMatches, setMentorMatches] = useState<MentorMatch[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [currentMatch, setCurrentMatch] = useState<MentorMatch | null>(null);
-  const [availableMentees, setAvailableMentees] = useState<Mentee[]>([]);
-  const [currentDemoMenteeIndex, setCurrentDemoMenteeIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Get current user and verify they are a mentee
+  const getCurrentUser = async () => {
+    debugLog('👤 Getting current user...');
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        debugLog('❌ Not authenticated:', authError);
+        setError('Please log in to access mentor matching');
+        return null;
+      }
+
+      debugLog('✅ Authenticated user:', user.id);
+      
+      // Get user data from users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, user_type, name, bio, location, auth_user_id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        debugLog('❌ User not found in users table:', userError);
+        setError('User profile not found');
+        return null;
+      }
+
+      console.log('Fetched userData:', userData);
+
+      // Check if user is a student/mentee
+      if (userData.user_type !== 'Student') {
+        setError('Only students can access mentor matching');
+        return null;
+      }
+
+      setCurrentUser(userData);
+      setIsAuthenticated(true);
+      
+      return userData;
+    } catch (error) {
+      debugLog('❌ Error getting current user:', error);
+      setError('Authentication error');
+      return null;
+    }
+  };
+
+  // Get the current user's mentee profile
+  const getCurrentMenteeProfile = async (userData: any) => {
+    debugLog('📋 Getting current user mentee profile...');
+    
+    try {
+      console.log('Looking for mentee with auth_user_id:', userData.auth_user_id);
+      
+      // Use auth_user_id (UUID) to find the mentee
+      const { data: menteeData, error: menteeError } = await supabase
+        .from('mentees')
+        .select(`
+          menteeid,
+          user_id,
+          skills,
+          target_roles,
+          current_level,
+          learning_goals,
+          study_level,
+          field,
+          preferred_mentoring_style,
+          time_commitment_hours_per_week
+        `)
+        .eq('user_id', userData.auth_user_id)
+        .single();
+
+      console.log('Mentee lookup result:', { menteeData, menteeError });
+
+      if (menteeError || !menteeData) {
+        debugLog('❌ Mentee profile not found:', menteeError);
+        setError('Please complete your mentee profile first to access mentor matching');
+        return null;
+      }
+
+      // Enrich with user data
+      const enrichedMentee = {
+        ...menteeData,
+        name: userData.name,
+        bio: userData.bio,
+        location: userData.location
+      };
+
+      setCurrentMentee(enrichedMentee);
+      debugLog('✅ Current mentee profile loaded:', enrichedMentee);
+      
+      return enrichedMentee;
+    } catch (error) {
+      debugLog('❌ Error loading mentee profile:', error);
+      setError('Failed to load mentee profile');
+      return null;
+    }
+  };
 
   // Test Supabase connection
   const testSupabaseConnection = async () => {
@@ -104,127 +198,35 @@ function CyberMatchScreen() {
     }
   };
 
-  const loadAvailableMentees = async () => {
-    debugLog('📋 Loading available mentees...');
+  const loadCurrentUserProfile = async () => {
+    debugLog('📋 Loading current user profile...');
     
     try {
       setLoading(true);
       setError(null);
 
-      // Test connection first
-      const connectionOk = await testSupabaseConnection();
-      if (!connectionOk) {
-        debugLog('❌ Supabase connection failed, using mock data');
-        // Use mock data for testing
-        const mockMentees: Mentee[] = [
-          {
-            menteeid: 1,
-            user_id: DEMO_MENTEE_IDS[0],
-            name: "Demo Student",
-            bio: "Aspiring cybersecurity professional",
-            skills: ["Network Security", "Ethical Hacking", "Risk Assessment"],
-            target_roles: ["Security Analyst", "Penetration Tester"],
-            current_level: "Beginner",
-            location: "Melbourne, AU",
-            learning_goals: "Learn practical cybersecurity skills",
-            study_level: "Undergraduate",
-            field: "Computer Science"
-          }
-        ];
-        setAvailableMentees(mockMentees);
-        setCurrentMentee(mockMentees[0]);
-        debugLog('✅ Mock data loaded successfully');
-        return mockMentees;
+      // Get current authenticated user
+      const userData = await getCurrentUser();
+      if (!userData) {
+        return;
       }
 
-      const { data, error } = await supabase
-        .from('mentees')
-        .select(`
-          menteeid,
-          user_id,
-          skills,
-          target_roles,
-          current_level,
-          learning_goals,
-          study_level,
-          field,
-          preferred_mentoring_style,
-          time_commitment_hours_per_week
-        `)
-        .limit(5);
-
-      debugLog('📊 Supabase query result:', { data, error });
-
-      if (error) {
-        debugLog('❌ Query error:', error);
-        throw error;
+      // Get their mentee profile
+      const menteeProfile = await getCurrentMenteeProfile(userData);
+      if (!menteeProfile) {
+        return;
       }
-      
-      const menteesData = data || [];
-      debugLog('✅ Mentees data processed:', menteesData);
-      
-      // Fetch user details for each mentee
-      const enrichedMentees = await Promise.all(menteesData.map(async (mentee: any) => {
-        try {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('name, bio, location')
-            .eq('id', mentee.user_id)
-            .single();
-          
-          return {
-            ...mentee,
-            name: userData?.name,
-            bio: userData?.bio,
-            location: userData?.location
-          };
-        } catch (error) {
-          debugLog(`Error fetching user data for mentee ${mentee.menteeid}:`, error);
-          return mentee;
-        }
-      }));
-      
-      setAvailableMentees(enrichedMentees);
-      
-      if (enrichedMentees.length > 0) {
-        setCurrentMentee(enrichedMentees[0]);
-        debugLog('✅ Current mentee set:', enrichedMentees[0]);
-      } else {
-        debugLog('⚠️ No mentees found in database');
-        setError('No mentees found in database');
-      }
-      
-      return menteesData;
+
+      debugLog('✅ Current user mentee profile loaded successfully');
     } catch (error) {
-      debugLog('❌ Error loading mentees:', error);
-      setError(`Failed to load mentee profiles: ${error}`);
-      Alert.alert('Error', 'Failed to load mentee profiles');
-      return [];
+      debugLog('❌ Error loading user profile:', error);
+      setError(`Failed to load user profile: ${error}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const switchMentee = () => {
-    debugLog('🔄 Switching mentee...');
-    if (availableMentees.length > 1) {
-      const nextIndex = (currentDemoMenteeIndex + 1) % availableMentees.length;
-      debugLog(`Switching from index ${currentDemoMenteeIndex} to ${nextIndex}`);
 
-      setCurrentDemoMenteeIndex(nextIndex);
-      setCurrentMentee(availableMentees[nextIndex]);
-
-      // Reset matching state
-      setMatching(false);
-      setMentorMatches([]);
-      setCurrentMatch(null);
-      setCurrentMatchIndex(0);
-      
-      debugLog('✅ Mentee switched successfully, matches will refresh automatically');
-    } else {
-      debugLog('⚠️ No other mentees available to switch to');
-    }
-  };
 
   const getMentorMatches = async (): Promise<MentorMatch[]> => {
     console.log('🎯 Getting mentor matches...');
@@ -623,26 +625,44 @@ function CyberMatchScreen() {
     }
   };
 
-  const handleRequestMentorship = async (mentorId: string) => {
-    debugLog('📧 Requesting mentorship for mentor:', mentorId);
+  const handleRequestMentorship = async (mentorUserId: string) => {
+    debugLog('📧 Requesting mentorship for mentor:', mentorUserId);
+    
+    // Verify user is authenticated and is a mentee
+    if (!isAuthenticated || !currentUser || currentUser.user_type !== 'Student') {
+      Alert.alert('Error', 'Only students can send mentorship requests');
+      return;
+    }
+
+    if (!currentMentee) {
+      Alert.alert('Error', 'Please complete your mentee profile first');
+      return;
+    }
     
     try {
       // First get the mentor's integer ID from the mentors table
       const { data: mentorData } = await supabase
         .from('mentors')
         .select('mentorid')
-        .eq('user_id', mentorId)
+        .eq('user_id', parseInt(mentorUserId))
         .single();
 
       if (!mentorData) {
         throw new Error('Mentor not found');
       }
 
+      console.log('Sending mentorship request:', {
+        mentee_id: currentMentee.menteeid,
+        mentor_id: mentorData.mentorid,
+        user_id: currentUser.id
+      });
+
       const { error } = await supabase
         .from('mentorship_requests')
         .insert({
-          mentee_id: currentMentee?.menteeid,
+          mentee_id: currentMentee.menteeid,
           mentor_id: mentorData.mentorid,
+          user_id: currentUser.id, // Now using bigint directly, no need to convert to string
           status: 'Pending',
           message: 'Hi, I would like to request mentorship based on our compatibility match.'
         });
@@ -650,7 +670,9 @@ function CyberMatchScreen() {
       debugLog('Mentorship request result:', { error });
       
       if (error) {
-        debugLog('⚠️ Mentorship requests table might not exist, showing demo success');
+        console.error('Mentorship request error:', error);
+        Alert.alert('Error', `Failed to send mentorship request: ${error.message}`);
+        return;
       }
       
       Alert.alert(
@@ -659,12 +681,8 @@ function CyberMatchScreen() {
         [{ text: "OK", onPress: handleNext }]
       );
     } catch (error) {
-      debugLog('❌ Error sending mentorship request:', error);
-      Alert.alert(
-        'Success', 
-        'Mentorship request sent successfully! Once accepted, you\'ll be able to work together and leave a testimonial after your mentorship experience.',
-        [{ text: "OK", onPress: handleNext }]
-      );
+      console.error('❌ Error sending mentorship request:', error);
+      Alert.alert('Error', 'Failed to send mentorship request. Please try again.');
     }
   };
 
@@ -683,8 +701,8 @@ function CyberMatchScreen() {
   
   // Component lifecycle logging
   useEffect(() => {
-    debugLog('🎬 Component mounted, loading mentees...');
-    loadAvailableMentees();
+    debugLog('🎬 Component mounted, loading user profile...');
+    loadCurrentUserProfile();
     
     return () => {
       debugLog('🔚 Component unmounting...');
@@ -695,12 +713,14 @@ function CyberMatchScreen() {
     debugLog('🔄 State updated:', {
       matching,
       loading,
+      isAuthenticated,
+      currentUser: currentUser?.user_type,
       currentMentee: currentMentee?.user_id,
       mentorMatchesCount: mentorMatches.length,
       currentMatchIndex,
       error
     });
-  }, [matching, loading, currentMentee, mentorMatches, currentMatchIndex, error]);
+  }, [matching, loading, isAuthenticated, currentUser, currentMentee, mentorMatches, currentMatchIndex, error]);
 
   // Debug render conditions
   debugLog('🎨 Rendering component with states:', {
@@ -738,8 +758,8 @@ function CyberMatchScreen() {
         <TouchableOpacity 
           style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 9999 }}
           onPress={() => {
-            debugLog('🔄 Retry loading mentees');
-            loadAvailableMentees();
+            debugLog('🔄 Retry loading user profile');
+            loadCurrentUserProfile();
           }}
         >
           <Text style={{ color: 'white', fontWeight: '600' }}>Retry Loading</Text>
@@ -762,26 +782,14 @@ function CyberMatchScreen() {
             {DEBUG && (
               <View style={{ width: '100%', backgroundColor: '#F3F4F6', padding: 12, borderRadius: 8, marginBottom: 16 }}>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>Debug Info:</Text>
+                <Text style={{ fontSize: 10 }}>Current User: {currentUser?.user_type}</Text>
                 <Text style={{ fontSize: 10 }}>Current Mentee: {currentMentee?.user_id}</Text>
-                <Text style={{ fontSize: 10 }}>Available Mentees: {availableMentees.length}</Text>
-                <Text style={{ fontSize: 10 }}>Index: {currentDemoMenteeIndex}</Text>
+                <Text style={{ fontSize: 10 }}>Authenticated: {isAuthenticated.toString()}</Text>
                 {error && <Text style={{ fontSize: 10, color: '#DC2626' }}>Error: {error}</Text>}
               </View>
             )}
             
-            {/* Demo mentee switcher */}
-            {availableMentees.length > 1 && (
-              <View style={{ width: '100%', marginBottom: 16 }}>
-                <TouchableOpacity
-                  style={{ backgroundColor: '#FEF3C7', borderColor: '#FCD34D', borderWidth: 1, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999 }}
-                  onPress={switchMentee}
-                >
-                  <Text style={{ color: '#92400E', textAlign: 'center', fontWeight: '500' }}>
-                    🎯 Demo: Switch Mentee ({currentDemoMenteeIndex + 1}/{availableMentees.length})
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+
             
             <View style={{ width: '100%', backgroundColor: 'white', borderRadius: 16, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, marginBottom: 24 }}>
               <View style={{ alignItems: 'center', marginBottom: 16 }}>
@@ -1171,7 +1179,7 @@ function CyberMatchScreen() {
                     shadowRadius: 4,
                     elevation: 4
                 }}
-                onPress={() => handleRequestMentorship(String(currentMatch.user_id || currentMatch.mentorid))}
+                onPress={() => handleRequestMentorship(currentMatch.user_id.toString())}
                 >
                 <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, textAlign: 'center' }}>
                     Request Mentorship
