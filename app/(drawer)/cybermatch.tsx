@@ -38,7 +38,7 @@ interface Mentee {
 interface MentorMatch {
   experience_gap_appropriate: any;
   mentorid: number;
-  userid: string;
+  user_id: string;
   mentor_name: string;
   compatibility_score: number;
   skills_score: number;
@@ -227,14 +227,35 @@ function CyberMatchScreen() {
   };
 
   const getMentorMatches = async (): Promise<MentorMatch[]> => {
+    console.log('🎯 Getting mentor matches...');
     debugLog('🎯 Getting mentor matches...');
     
     if (!currentMentee) {
+      console.log('❌ No current mentee available');
       debugLog('❌ No current mentee available');
       return [];
     }
 
+    console.log('👤 Current mentee for matching:', currentMentee.user_id, currentMentee.name);
     debugLog('Current mentee for matching:', currentMentee);
+    
+    // Quick database check
+    try {
+      const { count } = await supabase
+        .from('mentors')
+        .select('*', { count: 'exact', head: true });
+      
+      console.log('📊 Total mentors in database:', count);
+      
+      const { count: activeCount } = await supabase
+        .from('mentors')
+        .select('*', { count: 'exact', head: true })
+        .eq('active', true);
+        
+      console.log('📊 Active mentors in database:', activeCount);
+    } catch (countError) {
+      console.log('⚠️ Could not count mentors:', countError);
+    }
 
     try {
       setLoading(true);
@@ -248,8 +269,7 @@ function CyberMatchScreen() {
           .from('mentors')
           .select(`
             mentorid,
-            userid,
-            bio,
+            user_id,
             hourly_rate,
             skills,
             specialization_roles,
@@ -260,8 +280,7 @@ function CyberMatchScreen() {
             availability_hours_per_week,
             industries,
             certifications,
-            location,
-            name,
+            bio,
             active
           `)
           .eq('active', true)
@@ -272,13 +291,36 @@ function CyberMatchScreen() {
         }
 
         debugLog('📋 Retrieved mentors:', mentorsData);
+        
+        if (!mentorsData || mentorsData.length === 0) {
+          console.log('⚠️ No active mentors found in database');
+          debugLog('Query result - mentorsData:', mentorsData);
+          debugLog('Query result - mentorsError:', mentorsError);
+          return [];
+        }
+        
+        console.log(`✅ Found ${mentorsData.length} active mentors in database`);
 
         // For each mentor, get detailed match information using get_match_details RPC
         const mentorMatches = await Promise.all((mentorsData || []).map(async (mentor: any) => {
+          // Get mentor's name and location from users table (bio is now in mentors table)
+          let mentorUserData: any = {};
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('name, location')
+              .eq('id', mentor.user_id)
+              .single();
+            
+            mentorUserData = userData || {};
+          } catch (userError) {
+            debugLog(`Error fetching user data for mentor ${mentor.mentorid}:`, userError);
+          }
+
           try {
             const { data: matchDetails, error: matchError } = await supabase.rpc('get_match_details', {
               mentee_userid: currentMentee.user_id,
-              mentor_userid: mentor.userid
+              mentor_userid: mentor.user_id
             });
             
             debugLog(`Match details for mentor ${mentor.mentorid}:`, matchDetails);
@@ -310,15 +352,15 @@ function CyberMatchScreen() {
 
               return {
                 mentorid: mentor.mentorid,
-                userid: mentor.userid,
-                mentor_name: mentor.name || `Mentor ${mentor.mentorid}`,
+                user_id: mentor.user_id,
+                mentor_name: mentorUserData.name || `Mentor ${mentor.mentorid}`,
                 compatibility_score: Math.round(compatibilityScore),
                 skills_score: Math.round(skillsScore),
                 roles_score: Math.round(rolesScore),
                 skill_overlap_count: skillOverlap.length,
                 role_overlap_count: roleOverlap.length,
                 mentor_experience_level: mentor.experience_level || 'Unknown',
-                mentor_location: mentor.location,
+                mentor_location: mentorUserData.location,
                 mentor_hourly_rate: mentor.hourly_rate,
                 mentor_availability: mentor.availability_hours_per_week,
                 mentor_bio: mentor.bio,
@@ -379,15 +421,15 @@ function CyberMatchScreen() {
 
             return {
               mentorid: mentor.mentorid,
-              userid: mentor.userid,
-              mentor_name: mentor.name || `Mentor ${mentor.mentorid}`,
+              user_id: mentor.user_id,
+              mentor_name: mentorUserData.name || `Mentor ${mentor.mentorid}`,
               compatibility_score: Math.round(compatibilityScore),
               skills_score: Math.round(skillsScore),
               roles_score: Math.round(rolesScore),
               skill_overlap_count: matchingSkills.length,
               role_overlap_count: matchingRoles.length,
               mentor_experience_level: mentor.experience_level || 'Unknown',
-              mentor_location: mentor.location,
+              mentor_location: mentorUserData.location,
               mentor_hourly_rate: mentor.hourly_rate,
               mentor_availability: mentor.availability_hours_per_week,
               mentor_bio: mentor.bio,
@@ -419,8 +461,7 @@ function CyberMatchScreen() {
           .from('mentors')
           .select(`
             mentorid,
-            userid,
-            bio,
+            user_id,
             hourly_rate,
             skills,
             specialization_roles,
@@ -443,9 +484,32 @@ function CyberMatchScreen() {
         }
 
         debugLog('📋 Retrieved mentors for fallback matching:', mentorsData);
+        
+        if (!mentorsData || mentorsData.length === 0) {
+          console.log('⚠️ Fallback: No active mentors found in database');
+          debugLog('Fallback query result - mentorsData:', mentorsData);
+          debugLog('Fallback query result - mentorsError:', mentorsError);
+          return [];
+        }
+        
+        console.log(`✅ Fallback: Found ${mentorsData.length} active mentors`);
 
-        // Calculate basic compatibility scores
-        matches = (mentorsData || []).map((mentor: any) => {
+        // Calculate basic compatibility scores and fetch user data
+        matches = await Promise.all((mentorsData || []).map(async (mentor: any) => {
+          // Get mentor's user data
+          let mentorUserData: any = {};
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('name, bio, location')
+              .eq('id', mentor.user_id)
+              .single();
+            
+            mentorUserData = userData || {};
+          } catch (userError) {
+            debugLog(`Error fetching user data for mentor ${mentor.mentorid}:`, userError);
+          }
+
           const menteeSkills = currentMentee.skills || [];
           const menteeRoles = currentMentee.target_roles || [];
           const mentorSkills = mentor.skills || [];
@@ -473,15 +537,15 @@ function CyberMatchScreen() {
 
           return {
             mentorid: mentor.mentorid,
-            userid: mentor.userid,
-            mentor_name: mentor.name || `Mentor ${mentor.mentorid}`,
+            user_id: mentor.user_id,
+            mentor_name: mentorUserData.name || `Mentor ${mentor.mentorid}`,
             compatibility_score: Math.round(compatibilityScore),
             skills_score: Math.round(skillsScore),
             roles_score: Math.round(rolesScore),
             skill_overlap_count: skillOverlap.length,
             role_overlap_count: roleOverlap.length,
             mentor_experience_level: mentor.experience_level || 'Unknown',
-            mentor_location: mentor.location,
+            mentor_location: mentorUserData.location,
             mentor_hourly_rate: mentor.hourly_rate,
             mentor_availability: mentor.availability_hours_per_week,
             mentor_bio: mentor.bio,
@@ -490,7 +554,9 @@ function CyberMatchScreen() {
             matching_roles: roleOverlap,
             experience_gap_appropriate: true
           };
-        }).sort((a, b) => b.compatibility_score - a.compatibility_score);
+        }));
+        
+        matches.sort((a, b) => b.compatibility_score - a.compatibility_score);
 
         debugLog('✅ Complete fallback matching completed:', matches);
       }
@@ -510,9 +576,19 @@ function CyberMatchScreen() {
   };
 
   const startMatching = async () => {
+    console.log('🚀 Starting matching process...');
     debugLog('🚀 Starting matching process...');
     
+    if (!currentMentee) {
+      console.log('❌ No current mentee available for matching');
+      setError('Please complete your mentee profile first.');
+      return;
+    }
+    
+    console.log('👤 Current mentee for matching:', currentMentee.user_id);
+    
     const matches = await getMentorMatches();
+    console.log('📊 Matches received:', matches?.length || 0, 'matches');
     debugLog('Matches received:', matches);
     
     if (matches.length > 0) {
@@ -520,11 +596,13 @@ function CyberMatchScreen() {
       setCurrentMatchIndex(0);
       setCurrentMatch(matches[0]);
       setMatching(true);
+      console.log('✅ Matching started successfully with', matches.length, 'matches');
       debugLog('✅ Matching started successfully');
     } else {
+      console.log('❌ No matches found - check database for active mentors');
       debugLog('❌ No matches found');
       // Show a more user-friendly message without an intrusive alert
-      setError('No mentors found matching your criteria. Try expanding your search criteria.');
+      setError('No mentors found. Please ensure there are active mentors in the database.');
     }
   };
 
@@ -553,7 +631,7 @@ function CyberMatchScreen() {
       const { data: mentorData } = await supabase
         .from('mentors')
         .select('mentorid')
-        .eq('userid', mentorId)
+        .eq('user_id', mentorId)
         .single();
 
       if (!mentorData) {
@@ -801,7 +879,7 @@ function CyberMatchScreen() {
             {/* Mentor Profile Header */}
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
                 <Image
-                source={{ uri: `https://avatar.iran.liara.run/public/${Math.random() > 0.5 ? 'boy' : 'girl'}?id=${currentMatch.mentorid || currentMatch.userid}` }}
+                source={{ uri: `https://avatar.iran.liara.run/public/${Math.random() > 0.5 ? 'boy' : 'girl'}?id=${currentMatch.mentorid || currentMatch.user_id}` }}
                 style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 12, borderWidth: 4, borderColor: '#BFDBFE' }}
                 />
                 <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1E3A8A', textAlign: 'center' }}>
@@ -958,7 +1036,7 @@ function CyberMatchScreen() {
                 </View>
             )}
 
-            {/* Mentor Details */}
+            {/* Mentor Bio Section */}
             {currentMatch.mentor_bio && (
                 <View style={{ backgroundColor: '#F9FAFB', borderRadius: 12, padding: 16, marginBottom: 16 }}>
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
@@ -1093,7 +1171,7 @@ function CyberMatchScreen() {
                     shadowRadius: 4,
                     elevation: 4
                 }}
-                onPress={() => handleRequestMentorship(String(currentMatch.userid || currentMatch.mentorid))}
+                onPress={() => handleRequestMentorship(String(currentMatch.user_id || currentMatch.mentorid))}
                 >
                 <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, textAlign: 'center' }}>
                     Request Mentorship

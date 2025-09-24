@@ -1,8 +1,47 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Drawer } from 'expo-router/drawer';
 import Feather from '@expo/vector-icons/Feather';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase/initiliaze';
 
 export default function DrawerLayout() {
+    const [userType, setUserType] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchUserType() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user?.email) {
+                    const { data: userData } = await supabase
+                        .from("users")
+                        .select("user_type")
+                        .eq("email", session.user.email)
+                        .single();
+                    
+                    if (userData?.user_type) {
+                        console.log("Drawer Layout - User Type detected:", userData.user_type);
+                        setUserType(userData.user_type);
+                    }
+                }
+            } catch (error) {
+                console.log("Error fetching user type:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchUserType();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+            fetchUserType();
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
     return (
 
             <Drawer
@@ -61,6 +100,10 @@ export default function DrawerLayout() {
                         drawerIcon: ({ color, size }) => (
                             <Feather name="shield" size={24} color={color} />
                         ),
+                        // Hide from drawer if user is a mentor
+                        drawerItemStyle: (!loading && userType?.toLowerCase() === "mentor") 
+                            ? { height: 0, overflow: 'hidden', marginVertical: 0 } 
+                            : { borderRadius: 12, marginVertical: 4 },
                     }}
                 />
             </Drawer>

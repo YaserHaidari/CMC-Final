@@ -23,13 +23,61 @@ interface User {
     DOB: string;
 }
 
+interface MentorProfile {
+    hourly_rate: number | null;
+    skills: string[];
+    specialization_roles: string[];
+    experience_level: string;
+    years_of_experience: number;
+    teaching_style: string[];
+    max_mentees: number;
+    availability_hours_per_week: number | null;
+    industries: string[];
+    certifications: string[];
+}
+
 export default function UpdateProfile() {
     const [newDetail, setNewDetail] = useState({ Name: "", Bio: "", Role: "", DOB: "", Email: "", location: "" });
+    const [mentorProfile, setMentorProfile] = useState<MentorProfile>({
+        hourly_rate: null,
+        skills: [],
+        specialization_roles: [],
+        experience_level: "Mid-level",
+        years_of_experience: 0,
+        teaching_style: [],
+        max_mentees: 5,
+        availability_hours_per_week: null,
+        industries: [],
+        certifications: []
+    });
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [showLocationPicker, setShowLocationPicker] = useState(false);
+    const [showExperiencePicker, setShowExperiencePicker] = useState(false);
+
+    // Experience levels for mentors
+    const experienceLevels = ["Mid-level", "Senior", "Expert", "Principal", "Executive"];
+    
+    // Common skills for cybersecurity
+    const commonSkills = [
+        "Network Security", "Ethical Hacking", "Penetration Testing", "Risk Assessment",
+        "Incident Response", "Malware Analysis", "Cloud Security", "SIEM", "Vulnerability Assessment",
+        "Cryptography", "Digital Forensics", "Compliance", "Security Architecture", "Threat Intelligence"
+    ];
+    
+    // Common industries
+    const commonIndustries = [
+        "Banking & Finance", "Healthcare", "Government", "Technology", "Consulting",
+        "Telecommunications", "Energy", "Retail", "Education", "Manufacturing"
+    ];
+    
+    // Teaching styles
+    const teachingStyles = [
+        "Hands-on Practice", "Theoretical Learning", "Project-based", "Mentorship",
+        "Group Discussion", "Case Studies", "Real-world Scenarios", "Interactive Workshops"
+    ];
 
     // Australian cities list
     const australianCities = [
@@ -129,12 +177,41 @@ export default function UpdateProfile() {
                         Email: data.email || "",
                         location: data.location || ""
                     });
+                    
+                    // If user is a mentor, fetch mentor profile data
+                    if (data.user_type?.toLowerCase() === "mentor") {
+                        fetchMentorProfile(data.id);
+                    }
                 }
                 setLoading(false);
             }
         }
         fetchUser();
     }, [session]);
+    
+    // Fetch mentor profile data
+    async function fetchMentorProfile(userId: number) {
+        const { data, error } = await supabase
+            .from("mentors")
+            .select("*")
+            .eq("user_id", userId)
+            .single();
+            
+        if (!error && data) {
+            setMentorProfile({
+                hourly_rate: data.hourly_rate,
+                skills: data.skills || [],
+                specialization_roles: data.specialization_roles || [],
+                experience_level: data.experience_level || "Mid-level",
+                years_of_experience: data.years_of_experience || 0,
+                teaching_style: data.teaching_style || [],
+                max_mentees: data.max_mentees || 5,
+                availability_hours_per_week: data.availability_hours_per_week,
+                industries: data.industries || [],
+                certifications: data.certifications || []
+            });
+        }
+    }
 
     // Fetch PIN on mount
     useEffect(() => {
@@ -258,27 +335,55 @@ export default function UpdateProfile() {
 
         console.log('📦 Fields to update:', updatedFields);
 
+        // Update user profile
+        let userUpdateSuccess = true;
         if (Object.keys(updatedFields).length > 0) {
-            console.log('💾 Sending update to database...');
-            const { error, data } = await supabase
+            console.log('💾 Sending user update to database...');
+            const { error } = await supabase
                 .from("users")
                 .update(updatedFields)
-                .eq("email", email)
-                .select();
+                .eq("email", email);
 
-            if (!error) {
-                console.log('✅ Update successful:', data);
-                Alert.alert("Success", "Profile updated successfully!");
-                setTimeout(() => {
-                    router.canGoBack() ? router.back() : router.push("/profile");
-                }, 1000);
-            } else {
-                console.log('❌ Update failed:', error.message);
+            if (error) {
+                console.log('❌ User update failed:', error.message);
                 Alert.alert("Error", `Failed to update profile: ${error.message}`);
+                userUpdateSuccess = false;
             }
-        } else {
-            console.log('ℹ️ No changes detected');
-            Alert.alert("Info", "No changes to save.");
+        }
+
+        // Update mentor profile if user is a mentor
+        let mentorUpdateSuccess = true;
+        if (user?.user_type?.toLowerCase() === "mentor" && userUpdateSuccess) {
+            console.log('💾 Updating mentor profile...');
+            const { error: mentorError } = await supabase
+                .from("mentors")
+                .update({
+                    hourly_rate: mentorProfile.hourly_rate,
+                    skills: mentorProfile.skills,
+                    specialization_roles: mentorProfile.specialization_roles,
+                    experience_level: mentorProfile.experience_level,
+                    years_of_experience: mentorProfile.years_of_experience,
+                    teaching_style: mentorProfile.teaching_style,
+                    max_mentees: mentorProfile.max_mentees,
+                    availability_hours_per_week: mentorProfile.availability_hours_per_week,
+                    industries: mentorProfile.industries,
+                    certifications: mentorProfile.certifications
+                })
+                .eq("user_id", user.id);
+
+            if (mentorError) {
+                console.log('❌ Mentor update failed:', mentorError.message);
+                Alert.alert("Error", `Failed to update mentor profile: ${mentorError.message}`);
+                mentorUpdateSuccess = false;
+            }
+        }
+
+        if (userUpdateSuccess && mentorUpdateSuccess) {
+            console.log('✅ Update successful');
+            Alert.alert("Success", "Profile updated successfully!");
+            setTimeout(() => {
+                router.canGoBack() ? router.back() : router.push("/profile");
+            }, 1000);
         }
     };
 
@@ -403,6 +508,130 @@ export default function UpdateProfile() {
                                         <Picker.Item key={index} label={city} value={city} />
                                     ))}
                                 </Picker>
+                            </View>
+                        )}
+
+                        {/* Mentor-specific fields */}
+                        {user?.user_type?.toLowerCase() === "mentor" && (
+                            <View style={styles.mentorSection}>
+                                <Text style={styles.sectionTitle}>Mentor Profile</Text>
+                                
+                                <Text style={styles.label}>Hourly Rate ($)</Text>
+                                <TextInput
+                                    value={mentorProfile.hourly_rate?.toString() || ""}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, hourly_rate: text ? parseInt(text) : null }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 50"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Years of Experience</Text>
+                                <TextInput
+                                    value={mentorProfile.years_of_experience.toString()}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, years_of_experience: parseInt(text) || 0 }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 5"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Experience Level</Text>
+                                <TouchableOpacity
+                                    style={styles.pickerContainer}
+                                    onPress={() => setShowExperiencePicker(!showExperiencePicker)}
+                                >
+                                    <Text style={[styles.pickerText, !mentorProfile.experience_level && styles.placeholderText]}>
+                                        {mentorProfile.experience_level || "Select experience level"}
+                                    </Text>
+                                </TouchableOpacity>
+                                
+                                {showExperiencePicker && (
+                                    <View style={styles.pickerWrapper}>
+                                        <Picker
+                                            selectedValue={mentorProfile.experience_level}
+                                            onValueChange={(itemValue) => {
+                                                setMentorProfile(prev => ({ ...prev, experience_level: itemValue }));
+                                                setShowExperiencePicker(false);
+                                            }}
+                                            style={styles.picker}
+                                        >
+                                            {experienceLevels.map((level, index) => (
+                                                <Picker.Item key={index} label={level} value={level} />
+                                            ))}
+                                        </Picker>
+                                    </View>
+                                )}
+
+                                <Text style={styles.label}>Maximum Mentees</Text>
+                                <TextInput
+                                    value={mentorProfile.max_mentees.toString()}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, max_mentees: parseInt(text) || 5 }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 5"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Availability (hours per week)</Text>
+                                <TextInput
+                                    value={mentorProfile.availability_hours_per_week?.toString() || ""}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, availability_hours_per_week: text ? parseInt(text) : null }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 10"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Skills (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.skills.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, skills: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Network Security, Ethical Hacking, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Specialization Roles (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.specialization_roles.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, specialization_roles: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Security Analyst, Penetration Tester, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Industries (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.industries.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, industries: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Banking, Healthcare, Technology, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Teaching Style (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.teaching_style.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, teaching_style: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Hands-on Practice, Project-based, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Certifications (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.certifications.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, certifications: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="CISSP, CEH, OSCP, etc."
+                                    multiline
+                                />
                             </View>
                         )}
 
@@ -639,5 +868,11 @@ const styles = StyleSheet.create({
     },
     picker: {
         backgroundColor: 'black',
+    },
+    mentorSection: {
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
     },
 });

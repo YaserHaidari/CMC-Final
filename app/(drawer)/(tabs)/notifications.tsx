@@ -56,14 +56,40 @@ function NotificationsScreen() {
 
       if (userData.user_type.toLowerCase() === "mentor") {
         // Get mentor ID from mentors table
-        const { data: mentorData, error: mentorError } = await supabase
+        console.log("Looking for mentor with user_id:", userData.id);
+        let { data: mentorData, error: mentorError } = await supabase
           .from("mentors")
-          .select("mentorid")
-          .eq("userid", session.user.id)
+          .select("mentorid, user_id")
+          .eq("user_id", userData.id)
           .single();
 
+        console.log("Mentor lookup result:", { mentorData, mentorError });
+
+        // Fallback: If not found with users table ID, try with auth user ID for legacy records
         if (mentorError || !mentorData) {
-          Alert.alert("Error", "Could not find your mentor profile.");
+          console.log("Trying fallback lookup with auth user ID:", session.user.id);
+          const fallbackResult = await supabase
+            .from("mentors")
+            .select("mentorid, user_id")
+            .eq("user_id", session.user.id)
+            .single();
+          
+          if (!fallbackResult.error && fallbackResult.data) {
+            console.log("Found mentor with fallback method:", fallbackResult.data);
+            mentorData = fallbackResult.data;
+            mentorError = null;
+          }
+        }
+
+        if (mentorError || !mentorData) {
+          // Try to find any mentors to debug
+          const { data: allMentors } = await supabase
+            .from("mentors")
+            .select("mentorid, user_id")
+            .limit(5);
+          console.log("Available mentors in database:", allMentors);
+          
+          Alert.alert("Error", `Could not find your mentor profile. Error: ${mentorError?.message || 'No data found'}\n\nTip: Try registering a new mentor account.`);
           setIsLoading(false);
           return;
         }
@@ -71,14 +97,40 @@ function NotificationsScreen() {
         fetchMentorshipRequestsForTutor(mentorData.mentorid);
       } else {
         // Get mentee ID from mentees table
-        const { data: menteeData, error: menteeError } = await supabase
+        console.log("Looking for mentee with user_id:", userData.id);
+        let { data: menteeData, error: menteeError } = await supabase
           .from("mentees")
-          .select("menteeid")
-          .eq("user_id", session.user.id)
+          .select("menteeid, user_id")
+          .eq("user_id", userData.id)
           .single();
 
+        console.log("Mentee lookup result:", { menteeData, menteeError });
+
+        // Fallback: If not found with users table ID, try with auth user ID for legacy records
         if (menteeError || !menteeData) {
-          Alert.alert("Error", "Could not find your mentee profile.");
+          console.log("Trying fallback lookup with auth user ID:", session.user.id);
+          const fallbackResult = await supabase
+            .from("mentees")
+            .select("menteeid, user_id")
+            .eq("user_id", session.user.id)
+            .single();
+          
+          if (!fallbackResult.error && fallbackResult.data) {
+            console.log("Found mentee with fallback method:", fallbackResult.data);
+            menteeData = fallbackResult.data;
+            menteeError = null;
+          }
+        }
+
+        if (menteeError || !menteeData) {
+          // Try to find any mentees to debug
+          const { data: allMentees } = await supabase
+            .from("mentees")
+            .select("menteeid, user_id")
+            .limit(5);
+          console.log("Available mentees in database:", allMentees);
+          
+          Alert.alert("Error", `Could not find your mentee profile. Error: ${menteeError?.message || 'No data found'}\n\nTip: Try registering a new mentee account.`);
           setIsLoading(false);
           return;
         }
@@ -200,16 +252,16 @@ function NotificationsScreen() {
           // Get mentor data
           const { data: mentorData } = await supabase
             .from('mentors')
-            .select('userid')
+            .select('user_id')
             .eq('mentorid', req.mentor_id)
             .single();
 
-          if (mentorData?.userid) {
+          if (mentorData?.user_id) {
             // Get user data
             const { data: userData } = await supabase
               .from('users')
               .select('name, email')
-              .eq('id', mentorData.userid)
+              .eq('id', mentorData.user_id)
               .single();
 
             return {
