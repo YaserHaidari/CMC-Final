@@ -105,11 +105,8 @@ function CyberMatchScreen() {
 
       console.log('Fetched userData:', userData);
 
-      // Check if user is a student/mentee
-      if (userData.user_type !== 'Student') {
-        setError('Only students can access mentor matching');
-        return null;
-      }
+      // Allow any user type to access mentor matching
+      // Removed validation: if (userData.user_type !== 'Student')
 
       setCurrentUser(userData);
       setIsAuthenticated(true);
@@ -150,9 +147,20 @@ function CyberMatchScreen() {
       console.log('Mentee lookup result:', { menteeData, menteeError });
 
       if (menteeError || !menteeData) {
-        debugLog('❌ Mentee profile not found:', menteeError);
-        setError('Please complete your mentee profile first to access mentor matching');
-        return null;
+        debugLog('⚠️ Mentee profile not found, creating basic profile:', menteeError);
+        // Create a basic mentee profile or allow matching without it
+        const basicMentee = {
+          menteeid: 0,
+          user_id: userData.auth_user_id,
+          skills: [],
+          target_roles: [],
+          current_level: 'Beginner',
+          name: userData.name,
+          bio: userData.bio,
+          location: userData.location
+        };
+        setCurrentMentee(basicMentee);
+        return basicMentee;
       }
 
       // Enrich with user data
@@ -618,9 +626,8 @@ function CyberMatchScreen() {
     debugLog('🚀 Starting matching process...');
     
     if (!currentMentee) {
-      console.log('❌ No current mentee available for matching');
-      setError('Please complete your mentee profile first.');
-      return;
+      console.log('⚠️ No mentee profile, but proceeding with basic matching');
+      // Allow matching even without complete mentee profile
     }
     
     console.log('👤 Current mentee for matching:', currentMentee.user_id);
@@ -736,16 +743,14 @@ function CyberMatchScreen() {
   const handleRequestMentorship = async (mentorUserId: string) => {
     debugLog('📧 Requesting mentorship for mentor:', mentorUserId);
     
-    // Verify user is authenticated and is a mentee
-    if (!isAuthenticated || !currentUser || currentUser.user_type !== 'Student') {
-      Alert.alert('Error', 'Only students can send mentorship requests');
+    // Verify user is authenticated
+    if (!isAuthenticated || !currentUser) {
+      Alert.alert('Error', 'Please log in to send mentorship requests');
       return;
     }
 
-    if (!currentMentee) {
-      Alert.alert('Error', 'Please complete your mentee profile first');
-      return;
-    }
+    // Allow any user to send mentorship requests
+    // Removed validations for user_type and mentee profile
     
     try {
       // First get the mentor's integer ID from the mentors table (mentors now use UUIDs)
@@ -856,7 +861,7 @@ function CyberMatchScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
         <Text style={{ fontSize: 20, color: '#6B7280', textAlign: 'center', marginBottom: 16 }}>
-          Please complete your mentee profile to find matches
+          Welcome to CyberMatch - Find Your Mentor
         </Text>
         {error && (
           <Text style={{ color: '#DC2626', marginBottom: 16, textAlign: 'center' }}>
