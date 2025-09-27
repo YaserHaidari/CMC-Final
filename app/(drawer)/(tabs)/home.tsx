@@ -4,6 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/lib/supabase/initiliaze";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Feather from "@expo/vector-icons/Feather";
+import CustomHeader from "@/components/CustomHeader";
+
 
 function HomeScreen() {
   const [welcomeMessage, setWelcomeMessage] = useState<string>("");
@@ -171,6 +173,7 @@ function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ minHeight: "100%", paddingBottom: 10 }}
       >
+        <CustomHeader />
         <Text className="text-4xl font-bold font-Title text-black text-center pt-5">
           Coffee Meets Careers {welcomeMessage}
         </Text>
