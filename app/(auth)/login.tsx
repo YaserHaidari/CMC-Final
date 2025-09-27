@@ -13,6 +13,7 @@ import {
 // Adjust the import path if you moved loginUser.js
 import loginUser from '@/lib/firebase/loginUser'; // Or your new path for the Supabase-only login function
 import { useRouter } from "expo-router";
+import { isPinEnabled, saveCurrentUser } from "../storage";
 
 export default function LoginScreen() { // Changed component name to LoginScreen for clarity
 
@@ -22,35 +23,39 @@ export default function LoginScreen() { // Changed component name to LoginScreen
     const [isLoading, setIsLoading] = useState(false); // Loading state
     const router = useRouter();
 
+      // Sanitize email for SecureStore key
+  const sanitizeUserId = (email: string) =>
+    email.replace(/[^a-zA-Z0-9._-]/g, "_");
     async function handleForm() {
-        if (!email || !pwd) {
-            setMessage("Please enter both email and password.");
-            return;
-        }
-        setIsLoading(true);
-        setMessage(''); // Clear previous messages
-
-        const result = await loginUser(email, pwd);
-        console.log("Login result:", result); // Log the result for debugging
-        setIsLoading(false);
-
-
-        if (result === true) {
-            const pin = await getPIN();
-            if (pin) {
-                // Existing user with PIN
-                router.replace("/pin");
-            } else {
-                // Existing user without PIN
-                router.replace("/(tabs)/home");
-            }
-        } else {
-            setMessage(result as string);
-        }
-
-
-
+    if (!email || !pwd) {
+      setMessage("Please enter both email and password.");
+      return;
     }
+    setIsLoading(true);
+    setMessage("");
+
+    const result = await loginUser(email, pwd);
+    setIsLoading(false);
+    console.log("Login result:", result);
+
+    if (result === true) {
+      const userId = sanitizeUserId(email);
+
+      // Save current user safely
+      await saveCurrentUser(userId);
+
+      const enabled = await isPinEnabled(userId);
+      const pin = await getPIN(userId);
+
+      if (enabled && pin) {
+        router.replace("/pin"); // show PIN login
+      } else {
+        router.replace("/home"); // normal login
+      }
+    } else {
+      setMessage(result as string);
+    }
+  }
 
     function navigateToRegister() {
         if (isLoading) return;
