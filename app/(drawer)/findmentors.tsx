@@ -1,106 +1,116 @@
-import { View, Text, TextInput, Image } from "react-native";
+import { View, Text, TextInput, Image, FlatList, ActivityIndicator } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import CustomHeader from "@/components/CustomHeader";
+import React, { useState, useEffect } from "react";
+import { fetchMentors } from "@/components/fetchMentorsAPI";
+import { useRouter } from "expo-router";
+import SearchBar from "@/components/SearchBar";
 
-function FindMentorsScreen() {
-  return (
-    <View className="bg-gray-100">
-      <View className='flex-row self-center items-center mt-4 p-2 bg-gray-200 w-5/6 rounded-full'>
-        <Ionicons name='search' size={20} className='ml-2' color="black" />
-        <TextInput
-        placeholder='Search'
-        className='text-lg ml-2'
-        />
-        <Ionicons name='filter-sharp' size={20} className='ml-auto mr-4' color="black" />
-      </View>
+const FindMentors = () => {
+    const router = useRouter();
+    const [query, setQuery] = useState('');
+    const [mentors, setMentors] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
 
-      <Text style={{ fontFamily: "OpenSans-Bold" }} className='text-xl mt-4 ml-8'>
-        Recommended Mentors
-      </Text>
-      <View className="flex-row mt-4 mx-8 gap-4">
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/20"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/40"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/60"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/80"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-      </View>
+    // Runs every time the search changes
+    useEffect(() => {
+        const loadMentors = async () => {
+            setLoading(true);
+            try {
+                if (query.trim()) {
+                    // If search query is not empty, fetch filtered results
+                    const results = await fetchMentors(query);
+                    setMentors(results || []);
+                } else {
+                    // Otherwise fetch all mentors
+                    const results = await fetchMentors();
+                    setMentors(results || []);
+                }
+            } catch (err) {
+                // If something goes wrong, log error and reset list
+                console.error("Error fetching mentors:", err);
+                setMentors([]);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-      <Text style={{ fontFamily: "OpenSans-Bold" }} className='text-xl mt-4 ml-8'>
-        Mentors Near You
-      </Text>
-      <View className="flex-row mt-4 mx-8 gap-4">
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/20"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/40"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/60"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/80"}}
-          style={{ width: 80, height: 80 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-      </View>
+        loadMentors();
+    }, [query]);
 
-      <Text style={{ fontFamily: "OpenSans-Bold" }} className='text-xl mt-4 ml-8'>
-        Recent Projects
-      </Text>
-      <View className="flex-row mt-4 mx-8 border border-gray-400 rounded-lg p-4">
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/57"}}
-          style={{ width: 60, height: 60 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <View className="flex-col w-72 ml-4 gap-2">
-          <Text style={{ fontFamily: "OpenSans-Bold" }}>
-            "This is a sample project title"
-          </Text>
-          <Text style={{ fontFamily: "OpenSans-Regular" }}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-          </Text>
+    return (
+        <View className="flex-1 bg-stone-100 pt-10">
+
+            <CustomHeader />
+
+
+            <FlatList
+                data={mentors} // array of mentors to render
+                keyExtractor={(item, index) =>
+                    item?.name ? item.name.toString() : index.toString()
+                }
+
+
+                renderItem={({ item }) => (
+                    <View className="flex-row items-center px-4 py-3 border-b border-gray-200">
+                        {/* Fetches their profile picture (or placeholder if missing) */}
+                        {item.photoURL ? (
+                            <Image
+                                source={{ uri: item.photoURL }}
+                                className="h-12 w-12 rounded-full mr-3"
+                            />
+                        ) : (
+                            <View className="h-12 w-12 rounded-full bg-gray-300 mr-3 items-center justify-center">
+                                <Ionicons name="person" size={20} color="white" />
+                            </View>
+                        )}
+
+                        {/* Mentor details */}
+                        <View className="flex-1">
+                            <Text className="font-semibold text-gray-900">{item.name}</Text>
+                            <Text className="text-gray-600 text-sm">
+                                {item.bio || "No bio available"}
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
+                // if theres no matches it shows an empty list
+                ListEmptyComponent={
+                    !loading && (
+                        <Text className="text-center text-gray-500 mt-6">
+                            No mentors found
+                        </Text>
+                    )
+                }
+
+                ListHeaderComponent={
+                    <>
+                        {/* Search bar for typing queries */}
+                        <View>
+                            <SearchBar
+                                value={query}
+                                onChangeText={(text:string) => setQuery(text)}
+                                placeholder="Search for a mentor..."
+                                placeholderTextColor="#9CA3AF"
+
+                            />
+                        </View>
+
+                        {loading && (
+                            <ActivityIndicator size="small" className="my-2"/>
+                        )}
+
+                        {!loading && query.trim().length > 0 && (
+                            <Text className="text-base text-gray-800 pl-4 pb-1">
+                                Search mentors for "{query}"
+                            </Text>
+                        )}
+                    </>
+                }
+            />
         </View>
-      </View>
+    );
+};
 
-      <View className="flex-row mt-4 mx-8 border border-gray-400 rounded-lg p-4">
-        <Image
-          source={{uri: "https://avatar.iran.liara.run/public/74"}}
-          style={{ width: 60, height: 60 }}
-          className="rounded-full border-2 border-gray-200"
-        />
-        <View className="flex-col w-72 ml-4 gap-2">
-          <Text style={{ fontFamily: "OpenSans-Bold" }}>
-            "This is a sample project title"
-          </Text>
-          <Text style={{ fontFamily: "OpenSans-Regular" }}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-export default FindMentorsScreen;
+export default FindMentors;
