@@ -18,7 +18,7 @@ export default function PinLoginScreen() {
   const handleLogin = () => {
     if (pin.length === PIN_LENGTH) {
       // validate pin here
-      router.replace("/home"); // or redirect as needed
+      router.replace("/(drawer)/(tabs)/home"); // or redirect as needed
     }
   };
 

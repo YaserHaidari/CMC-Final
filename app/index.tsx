@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, Image } from "react-native";
-import { firebaseConfig } from "./firebase/firebase_initialize";
+import { firebaseConfig } from "@/lib/firebase/firebase_initialize";
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { router, usePathname } from "expo-router";
@@ -28,10 +28,10 @@ export default function HomeScreen() {
 
         if (locationData.country === "Australia") {
           setInAustralia(true);
-          initializeFirebaseUser();
+          initializeFirebaseUser(); // initialise the user if they are in Australia
         } else {
           setInAustralia(false);
-          router.replace("/accessDenied");
+          router.replace("/accessDenied"); // block the user if they are outside Australia
         }
 
       } catch (error) {
@@ -64,7 +64,7 @@ export default function HomeScreen() {
         const user = await signInWithEmailAndPassword(auth, email, pwd);
         if (user.user) {
           console.log("User signed in:", user.user.email);
-          router.replace("/home");
+          router.replace("/(drawer)");
         } else {
           router.replace("/login");
         }

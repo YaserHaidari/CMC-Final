@@ -1,83 +1,145 @@
-// app/(auth)/login.tsx
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
-import { useRouter } from 'expo-router';
+import { useState } from "react";
+import { getPIN } from '@/lib/storage';
+import {
+    View,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    KeyboardAvoidingView,
+    ScrollView,
+    Platform,
+    ActivityIndicator // Added for loading state
+} from "react-native";
+// Adjust the import path if you moved loginUser.js
+import loginUser from '@/lib/firebase/loginUser'; // Or your new path for the Supabase-only login function
+import { useRouter } from "expo-router";
 
-export default function LoginScreen() {
-  const router = useRouter();
-  const [savedPin, setSavedPin] = useState<string | null>(null);
-  const [pin, setPin] = useState('');
+export default function LoginScreen() { // Changed component name to LoginScreen for clarity
 
-  useEffect(() => {
-    (async () => {
-      const stored = await SecureStore.getItemAsync('userPin');
-      setSavedPin(stored);
-      if (stored) attemptBiometricAuth();
-    })();
-  }, []);
+    const [email, setEmail] = useState<string>(''); // Use string, not String
+    const [pwd, setPwd] = useState<string>('');   // Use string, not String
+    const [message, setMessage] = useState<string>(''); // Use string, not String
+    const [isLoading, setIsLoading] = useState(false); // Loading state
+    const router = useRouter();
 
-  const attemptBiometricAuth = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-    if (!hasHardware || !isEnrolled) return;
+    async function handleForm() {
+        if (!email || !pwd) {
+            setMessage("Please enter both email and password.");
+            return;
+        }
+        setIsLoading(true);
+        setMessage(''); // Clear previous messages
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Log in with Biometrics',
-      disableDeviceFallback: false, // allows PIN fallback
-    });
+        const result = await loginUser(email, pwd);
+        console.log("Login result:", result); // Log the result for debugging
+        setIsLoading(false);
 
-    if (result.success) {
-      router.replace('/');
+
+        if (result === true) {
+            const pin = await getPIN();
+            if (pin) {
+                // Existing user with PIN
+                router.replace("/pin");
+            } else {
+                // Existing user without PIN
+                router.replace("/(tabs)/home");
+            }
+        } else {
+            setMessage(result as string);
+        }
+
+
+
     }
-  };
 
-  const handlePinSubmit = async () => {
-    if (!savedPin) {
-      if (pin.length < 4) {
-        Alert.alert('Oops!', 'PIN must be at least 4 digits.');
-        return;
-      }
-      await SecureStore.setItemAsync('userPin', pin);
-      Alert.alert('PIN set!', 'You can now login using PIN or biometrics.');
-      router.replace('/');
-    } else {
-      if (pin === savedPin) {
-        router.replace('/');
-      } else {
-        Alert.alert('Invalid PIN', 'Please try again.');
-      }
+    function navigateToRegister() {
+        if (isLoading) return;
+        router.replace("/register");
     }
-    setPin('');
-  };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{savedPin ? 'Enter PIN' : 'Set up PIN'}</Text>
-      <TextInput
-        style={styles.input}
-        value={pin}
-        onChangeText={setPin}
-        placeholder="••••"
-        secureTextEntry
-        keyboardType="numeric"
-        maxLength={6}
-      />
-      <Button
-        title={savedPin ? 'Unlock' : 'Save PIN'}
-        onPress={handlePinSubmit}
-      />
-    </View>
-  );
+    return (
+        <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+            className="flex-1 bg-white"
+        >
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} // Added justifyContent
+                keyboardShouldPersistTaps="handled"
+                className="px-4" // Added some horizontal padding
+            >
+                <View className="items-center">
+                    <Text className="text-4xl font-bold font-Title text-black text-center pt-5 pb-8">
+                        Coffee Meets Careers
+                    </Text>
+                    <Text className="text-3xl font-Menu text-center mb-2">Login</Text>
+                    <Text className="text-lg font-Menu text-center text-gray-600 pb-10">
+                        Sign in to continue
+                    </Text>
+                </View>
+
+                <View className="mb-6 mx-6">
+                    <Text className="text-base font-bold font-Menu text-gray-700 mb-1">Email</Text>
+                    <View className="flex-row items-center bg-gray-100 border border-gray-300 px-4 rounded-lg h-14">
+                        <TextInput
+                            className="flex-1 text-base font-Text text-gray-800"
+                            placeholder="someone@example.com"
+                            onChangeText={(text) => setEmail(text)}
+                            value={email}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            editable={!isLoading}
+                        />
+                    </View>
+                </View>
+
+                <View className="mb-8 mx-6">
+                    <Text className="text-base font-bold font-Menu text-gray-700 mb-1">Password</Text>
+                    <View className="flex-row items-center bg-gray-100 border border-gray-300 px-4 rounded-lg h-14">
+                        <TextInput
+                            className="flex-1 text-base font-Text text-black"
+                            secureTextEntry={true}
+                            placeholder="Password"
+                            onChangeText={(text) => setPwd(text)}
+                            value={pwd}
+                            editable={!isLoading}
+                        />
+                    </View>
+                </View>
+
+                <View className="mx-6 mb-8">
+                    <TouchableOpacity
+                        onPress={handleForm}
+                        disabled={isLoading}
+                        className={`flex-row bg-primary px-4 rounded-lg h-14 items-center justify-center ${isLoading ? "opacity-50" : ""}`}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Text className="text-xl font-Menu text-white font-medium">Log In</Text>
+                        )}
+                    </TouchableOpacity>
+                    {message && (
+                        <Text className="text-center text-red-600 mt-4 text-sm px-2">
+                            {message}
+                        </Text>
+                    )}
+                </View>
+
+                <View className="items-center pb-10">
+                    <TouchableOpacity onPress={navigateToRegister} disabled={isLoading}>
+                        <Text className="text-base font-Menu text-center text-gray-500">
+                            Don't have an account? <Text className="text-primary font-semibold">Register</Text>
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={()=> router.replace ("/pin")} disabled={isLoading} className="mt-4">
+                        <Text className="text-base font-Menu text-center text-gray-500">
+                            Login with <Text className="text-primary font-semibold">PIN</Text>
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
+        
+    );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20
-  },
-  title: { fontSize: 24, marginBottom: 20 },
-  input: {
-    width: '50%', borderBottomWidth: 1, padding: 10, fontSize: 20, textAlign: 'center', marginBottom: 20
-  },
-});

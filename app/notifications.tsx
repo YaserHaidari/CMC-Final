@@ -28,7 +28,7 @@ import {
   deleteDoc,
   writeBatch,
 } from "firebase/firestore";
-import { firebaseConfig } from "./firebase/firebase_initialize";
+import { firebaseConfig } from "@/lib/firebase/firebase_initialize";
 import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 
