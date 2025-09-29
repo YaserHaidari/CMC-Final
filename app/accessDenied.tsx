@@ -1,6 +1,5 @@
 import { View, Text, Button, ScrollView, Image } from "react-native";
 
-// General page which prevents users outside Australia from using the app
 function AccessDenied() {
     return(
         <View className=" flex-1 justify-center bg-neutral-500">

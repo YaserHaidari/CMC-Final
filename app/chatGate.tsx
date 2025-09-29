@@ -1,64 +1,57 @@
 import React, { useEffect, useState } from "react";
-import { View, Text } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { supabase } from "@/lib/supabase/initiliaze";
+import { View, Text, TouchableOpacity } from "react-native";
+import { useRoute } from "@react-navigation/native";
+import { supabase } from "../app/supabase/initiliaze";
 import Chat from "./chat";
 
 type RouteParams = {
-  userId: string;   // numeric user table ID
+  userId: string;
   userName: string;
 };
 
 export default function ChatGate() {
-  const { userId: userIdStr, userName } = useLocalSearchParams() as RouteParams;
+  const route = useRoute();
+  const { userId: userIdStr, userName } = route.params as RouteParams;
 
   const [blocked, setBlocked] = useState<boolean | null>(null);
-  const [currentAuthId, setCurrentAuthId] = useState<string | null>(null);
-  const [otherAuthId, setOtherAuthId] = useState<string | null>(null);
+  const [currentAdminId, setCurrentAdminId] = useState<number | null>(null);
 
   const userId = Number(userIdStr);
 
-  //  Get current logged-in user auth ID
   useEffect(() => {
-    async function fetchAuthId() {
+    async function fetchAdminId() {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error || !user) throw error || new Error("No active user");
-        setCurrentAuthId(user.id);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const email = sessionData?.session?.user?.email;
+        if (!email) throw new Error("No session email");
+
+        const { data: adminData, error } = await supabase
+          .from("admin")
+          .select("adminid")
+          .eq("email", email)
+          .single();
+
+        if (error || !adminData) throw error || new Error("No admin found");
+        setCurrentAdminId(adminData.adminid);
       } catch (e: any) {
-        console.error("Auth fetch error:", e.message);
+        console.error("Admin fetch error:", e.message);
         setBlocked(true);
       }
     }
-    fetchAuthId();
+    fetchAdminId();
   }, []);
 
-  //  Get other user's auth ID and check mutual block
   useEffect(() => {
-    if (!currentAuthId) return;
+    if (!currentAdminId) return;
 
     async function checkBlock() {
       try {
-        // Find auth_user_id for the other user (from users table)
-        const { data: otherUser, error: otherError } = await supabase
-          .from("users")
-          .select("auth_user_id")
-          .eq("id", userId)
-          .single();
-
-        if (otherError || !otherUser) {
-          throw otherError || new Error("Other user not found");
-        }
-
-        const otherAuthId = otherUser.auth_user_id;
-        setOtherAuthId(otherAuthId);
-
         const { data, error } = await supabase
           .from("blocks")
-          .select("blocker_user_id, blocked_user_id")
+          .select("blockid")
           .or(
-            `and(blocker_user_id.eq.${currentAuthId},blocked_user_id.eq.${otherAuthId}),
-             and(blocker_user_id.eq.${otherAuthId},blocked_user_id.eq.${currentAuthId})`
+            `and(blockerid.eq.${currentAdminId},blockedid.eq.${userId}),
+             and(blockerid.eq.${userId},blockedid.eq.${currentAdminId})`
           )
           .limit(1);
 
@@ -71,25 +64,23 @@ export default function ChatGate() {
     }
 
     checkBlock();
-  }, [currentAuthId, userId]);
+  }, [currentAdminId, userId]);
 
-  if (blocked === null) {
+  if (blocked === null)
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Text>Checking access...</Text>
       </View>
     );
-  }
 
-  if (blocked) {
+  if (blocked)
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 16 }}>
         <Text style={{ fontSize: 16, marginBottom: 12, textAlign: "center" }}>
-          Chat disabled. One of you has blocked the other.
+          Chat disabled. You are blocked or have blocked this user.
         </Text>
       </View>
     );
-  }
 
-  return <Chat userId={otherAuthId!} userName={userName} />;
+  return <Chat userId={userId} userName={userName} />;
 }
