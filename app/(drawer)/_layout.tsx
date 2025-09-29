@@ -46,7 +46,7 @@ export default function DrawerLayout() {
 
             <Drawer
                 screenOptions={{
-                    headerShown: true,
+                    headerShown: false,
                     drawerStyle: {
                         backgroundColor: "#f9fafb",
                         borderTopRightRadius: 24,
@@ -73,10 +73,9 @@ export default function DrawerLayout() {
                 }}
             >
                 <Drawer.Screen 
-                    name="(tabs)" 
+                    name="(tabs)"
                     options={{
                         drawerLabel: "Home Page",
-                        title: "Home",
                         drawerIcon: ({ color, size }) => (
                             <Feather name="home" size={size} color={color} />
                         ),
@@ -86,7 +85,6 @@ export default function DrawerLayout() {
                     name="findmentors" 
                     options={{
                         drawerLabel: "Explore",
-                        title: "Find Mentors",
                         drawerIcon: ({ color, size }) => (
                             <Feather name="search" size={24} color={color} />
                         ),
@@ -96,7 +94,6 @@ export default function DrawerLayout() {
                     name="cybermatch" 
                     options={{
                         drawerLabel: "Cyber Match",
-                        title: "Cyber Match",
                         drawerIcon: ({ color, size }) => (
                             <Feather name="shield" size={24} color={color} />
                         ),
