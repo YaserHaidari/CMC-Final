@@ -1,5 +1,5 @@
 // Import a configured Supabase client instance
-import { supabase } from "@/app/(supabase)/initiliaze";
+import { supabase } from "../lib/supabase/initiliaze"
 
 // Function to fetch mentors from the database
 export const fetchMentors = async (query?: string) => {

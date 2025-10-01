@@ -10,7 +10,7 @@ interface UserInfo {
 interface MentorshipRequest {
   id: string;
   created_at: string;
-  status: 'pending' | 'accepted' | 'declined' | 'Pending' | 'Accepted' | 'Declined';
+  status: 'pending' | 'accepted' | 'declined'; // Changed to only lowercase
   message?: string;
   mentee_id: number;
   mentor_id: number;
@@ -162,6 +162,7 @@ function NotificationsScreen() {
 
             return {
               ...req,
+              status: req.status.toLowerCase(), // Convert to lowercase
               mentee: userData ? [{ name: userData.name, email: userData.email }] : []
             };
           }
@@ -171,6 +172,7 @@ function NotificationsScreen() {
 
         return {
           ...req,
+          status: req.status.toLowerCase(), // Convert to lowercase
           mentee: []
         };
       }));
@@ -259,6 +261,7 @@ function NotificationsScreen() {
 
             return {
               ...req,
+              status: req.status.toLowerCase(), // Convert to lowercase
               mentor: userData ? [{ name: userData.name, email: userData.email }] : []
             };
           }
@@ -268,6 +271,7 @@ function NotificationsScreen() {
 
         return {
           ...req,
+          status: req.status.toLowerCase(), // Convert to lowercase
           mentor: []
         };
       }));
@@ -287,8 +291,8 @@ function NotificationsScreen() {
     try {
       console.log('Updating request:', requestId, 'to status:', newStatus);
       
-      // Capitalize first letter to match database format (Pending -> Accepted/Declined)
-      const capitalizedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+      // Use lowercase status to match our interface
+      const lowercaseStatus = newStatus;
       
       // First, verify the request exists and get current status
       const { data: currentRequest, error: fetchError } = await supabase
@@ -305,11 +309,11 @@ function NotificationsScreen() {
 
       console.log('Current request data:', currentRequest);
 
-      // Update the request
+      // Update the request - store lowercase in database
       const { data: updateData, error } = await supabase
         .from('mentorship_requests')
         .update({ 
-          status: capitalizedStatus,
+          status: lowercaseStatus, // Store lowercase
           responded_at: new Date().toISOString(),
           response_message: newStatus === 'accepted' 
             ? 'Mentorship request has been accepted!' 
@@ -327,7 +331,7 @@ function NotificationsScreen() {
         console.log('Update successful:', updateData[0]);
         Alert.alert('Success', `Request ${newStatus} successfully!`);
         
-        // Update local state with the actual returned status
+        // Update local state - ensure lowercase
         setRequests(prevRequests =>
           prevRequests.map(req =>
             req.id === requestId ? { 
@@ -392,12 +396,12 @@ function NotificationsScreen() {
       ) : (
         requests.map((request) => (
           <View key={request.id} style={styles.requestCard}>
-            {/* Status Badge */}
+            {/* Status Badge - Updated conditions */}
             <View style={[
               styles.statusBadge,
-              request.status.toLowerCase() === 'pending' && styles.pendingBadge,
-              request.status.toLowerCase() === 'accepted' && styles.acceptedBadge,
-              request.status.toLowerCase() === 'declined' && styles.declinedBadge,
+              request.status === 'pending' && styles.pendingBadge,
+              request.status === 'accepted' && styles.acceptedBadge,
+              request.status === 'declined' && styles.declinedBadge,
             ]}>
               <Text style={styles.statusText}>
                 {request.status === 'pending' ? '⏳' : 
@@ -454,8 +458,8 @@ function NotificationsScreen() {
               </View>
             )}
 
-            {/* Action Buttons */}
-            {role && role.toLowerCase() === "mentor" && request.status.toLowerCase() === 'pending' && (
+            {/* Action Buttons - Updated condition */}
+            {role && role.toLowerCase() === "mentor" && request.status === 'pending' && (
               <View style={styles.actionButtons}>
                 <View style={styles.buttonContainer}>
                   <Button
@@ -480,6 +484,7 @@ function NotificationsScreen() {
   );
 }
 
+// ...existing styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,

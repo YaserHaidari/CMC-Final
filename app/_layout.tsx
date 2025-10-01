@@ -86,15 +86,15 @@ function RootLayout() {
             }}
           />
           <Stack.Screen name="index" options={{ headerShown: false, }} />
-          <Stack.Screen name="register" options={{ title: "Register" }} />
-          <Stack.Screen name="login" options={{ title: "Login" }} />
-          <Stack.Screen name="pin" options={{ title: "Enter PIN" }} />
+          <Stack.Screen name="register" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="pin" options={{ headerShown: false }} />
           <Stack.Screen
             name="updateProfile"
             options={{ title: "Update Profile" }}
           />
 
-          <Stack.Screen name="chat" options={{ title: "Chat Match" }} />
+          <Stack.Screen name="chat" options={{ headerShown: false }} />
         </Stack>
       </MenuProvider>
     </GestureHandlerRootView>

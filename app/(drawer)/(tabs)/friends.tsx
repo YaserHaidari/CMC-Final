@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
 import { router } from "expo-router";
 
@@ -23,7 +30,9 @@ export default function Friends() {
   useEffect(() => {
     async function fetchCurrentUser() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) return;
 
         setCurrentUserEmail(user.email ?? null);
@@ -46,7 +55,9 @@ export default function Friends() {
         const { data: blocksData, error } = await supabase
           .from("blocks")
           .select("blocker_user_id, blocked_user_id")
-          .or(`blocker_user_id.eq.${currentAuthId},blocked_user_id.eq.${currentAuthId}`);
+          .or(
+            `blocker_user_id.eq.${currentAuthId},blocked_user_id.eq.${currentAuthId}`
+          );
 
         if (error) {
           setBlockedByMe([]);
@@ -59,7 +70,8 @@ export default function Friends() {
 
         blocksData?.forEach((b: any) => {
           if (b.blocker_user_id === currentAuthId) byMe.push(b.blocked_user_id);
-          if (b.blocked_user_id === currentAuthId) meBlockedBy.push(b.blocker_user_id);
+          if (b.blocked_user_id === currentAuthId)
+            meBlockedBy.push(b.blocker_user_id);
         });
 
         setBlockedByMe(byMe);
@@ -80,11 +92,12 @@ export default function Friends() {
       if (!currentUserEmail || !currentAuthId) return;
 
       try {
-        const { data: currentUserData, error: currentUserError } = await supabase
-          .from("users")
-          .select("id, user_type")
-          .eq("email", currentUserEmail)
-          .single();
+        const { data: currentUserData, error: currentUserError } =
+          await supabase
+            .from("users")
+            .select("id, user_type")
+            .eq("email", currentUserEmail)
+            .single();
 
         if (currentUserError || !currentUserData) {
           throw new Error("Could not find current user");
@@ -259,18 +272,29 @@ export default function Friends() {
     const isBlockedByMe = blockedByMe.includes(friend.auth_id);
     Alert.alert(
       friend.name,
-      isBlockedByMe ? "Do you want to unblock this user?" : "Do you want to block this user?",
+      isBlockedByMe
+        ? "Do you want to unblock this user?"
+        : "Do you want to block this user?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: isBlockedByMe ? "Unblock" : "Block", onPress: () => toggleBlock(friend) },
+        {
+          text: isBlockedByMe ? "Unblock" : "Block",
+          onPress: () => toggleBlock(friend),
+        },
       ]
     );
   }
 
   //  Handle chat tap with user-specific message
+  // ...existing code...
+
+  //  Handle chat tap with user-specific message
   function handleChat(friend: Friend) {
     if (blockedByMe.includes(friend.auth_id)) {
-      Alert.alert("Chat Disabled", "You have blocked this user. Unblock to chat.");
+      Alert.alert(
+        "Chat Disabled",
+        "You have blocked this user. Unblock to chat."
+      );
       return;
     }
 
@@ -279,14 +303,25 @@ export default function Friends() {
       return;
     }
 
-    router.push({ pathname: "/chat", params: { userId: friend.id, userName: friend.name } });
+    // CHANGE THIS LINE - Use auth_id instead of id, and the correct parameter names
+    router.push({
+      pathname: "/chat",
+      params: {
+        recipientId: friend.auth_id, // Use auth_id (UUID) instead of id (number)
+        recipientName: friend.name, // Use recipientName instead of userName
+      },
+    });
   }
+
+  // ...rest of existing code...
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.header}>My Connections</Text>
       {friends.length === 0 ? (
-        <Text style={styles.emptyText}>No approved mentorship connections yet.</Text>
+        <Text style={styles.emptyText}>
+          No approved mentorship connections yet.
+        </Text>
       ) : (
         friends.map((friend) => (
           <View key={`${friend.user_type}_${friend.id}`} style={styles.card}>
@@ -298,7 +333,13 @@ export default function Friends() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{friend.name}</Text>
                 <Text style={styles.email}>{friend.email}</Text>
-                <View style={{ flexDirection: "row", alignItems: 'center', marginTop: 2 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginTop: 2,
+                  }}
+                >
                   <Text style={styles.userType}>{friend.user_type}</Text>
                   <View style={styles.statusBadge}>
                     <Text style={styles.statusText}>✓ {friend.status}</Text>
@@ -306,7 +347,10 @@ export default function Friends() {
                 </View>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => showBlockMenu(friend)} style={{ padding: 8 }}>
+            <TouchableOpacity
+              onPress={() => showBlockMenu(friend)}
+              style={{ padding: 8 }}
+            >
               <Text style={{ fontSize: 20 }}>⋮</Text>
             </TouchableOpacity>
           </View>
@@ -317,9 +361,25 @@ export default function Friends() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f3f4f6", paddingTop: 32, paddingHorizontal: 16 },
-  header: { fontSize: 26, fontWeight: "bold", marginBottom: 18, color: "#222", letterSpacing: 0.5 },
-  emptyText: { textAlign: "center", color: "#888", marginTop: 40, fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    paddingTop: 32,
+    paddingHorizontal: 16,
+  },
+  header: {
+    fontSize: 26,
+    fontWeight: "bold",
+    marginBottom: 18,
+    color: "#222",
+    letterSpacing: 0.5,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#888",
+    marginTop: 40,
+    fontSize: 16,
+  },
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -348,7 +408,13 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 17, fontWeight: "600", color: "#222" },
   email: { fontSize: 13, color: "#6b7280", marginTop: 2 },
-  userType: { fontSize: 11, color: "#9ca3af", marginTop: 1, fontWeight: "500", marginRight: 8 },
+  userType: {
+    fontSize: 11,
+    color: "#9ca3af",
+    marginTop: 1,
+    fontWeight: "500",
+    marginRight: 8,
+  },
   statusBadge: {
     backgroundColor: "#dcfce7",
     borderRadius: 12,
