@@ -214,15 +214,17 @@ export default function RegisterScreen() {
         </View>
         <View className="mx-20 mb-5">
           <SegmentedControl
-            backgroundColor="#000000"
-            style={{ height: 40, borderRadius: 20 }}
-            tintColor="#3B82F6"
-            values={["Mentee", "Mentor"]}
-            selectedIndex={userType}
-            onChange={(event) =>
-              setUsertype(event.nativeEvent.selectedSegmentIndex)
-            }
-            enabled={!isProcessing && !isWaitingForVerification}
+              backgroundColor="#9CA3AF"
+              style={{ height: 40, borderRadius: 20}}
+              tintColor="#16519F"
+              values={["Student", "Mentor"]}
+              selectedIndex={userType}
+              onChange={(event) =>
+                  setUsertype(event.nativeEvent.selectedSegmentIndex)
+              }
+              enabled={!isProcessing && !isWaitingForVerification}
+              fontStyle={{ color: "white" }}
+              activeFontStyle={{ color: "white" }}
           />
         </View>
         <Text className="text-base font-bold font-Menu pl-11">Name</Text>

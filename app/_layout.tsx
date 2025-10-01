@@ -81,6 +81,7 @@ function RootLayout() {
             name="(drawer)"
             options={{
               headerBackVisible: false,
+              headerShown: false,
               headerTitle: "",
             }}
           />

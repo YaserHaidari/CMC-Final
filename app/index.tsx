@@ -36,10 +36,10 @@ export default function HomeScreen() {
 
         if (locationData.country === "Australia") {
           setInAustralia(true);
-          initializeFirebaseUser();
+          initializeFirebaseUser(); // initialise the user if they are in Australia
         } else {
           setInAustralia(false);
-          router.replace("/accessDenied");
+          router.replace("/accessDenied"); // block the user if they are outside Australia
         }
 
       } catch (error) {
