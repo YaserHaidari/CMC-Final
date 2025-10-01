@@ -65,7 +65,7 @@ function HomeScreen() {
     try {
       const { data: mentorsData, error: mentorError } = await supabase
         .from("users")
-        .select("name, bio, location")
+        .select("mentorid, name, bio, location")
           .eq("user_type", "Mentor");
 
       if (mentorError || !mentorsData) return;

@@ -121,7 +121,7 @@ export default function Friends() {
             .from("mentorship_requests")
             .select("mentee_id, status")
             .eq("mentor_id", mentorData.mentorid)
-            .eq("status", "Accepted");
+            .eq("status", "accepted");
 
           if (!requestsData || requestsData.length === 0) {
             setFriends([]);
@@ -175,7 +175,7 @@ export default function Friends() {
             .from("mentorship_requests")
             .select("mentor_id, status")
             .eq("mentee_id", menteeData.menteeid)
-            .eq("status", "Accepted");
+            .eq("status", "accepted");
 
           if (!requestsData || requestsData.length === 0) {
             setFriends([]);
