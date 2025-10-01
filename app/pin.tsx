@@ -9,7 +9,7 @@ export default function PinLoginScreen() {
   const router = useRouter();
   const PIN_LENGTH = 4;
 
-  // Load saved PIN for current user
+  // update saved PIN for current user
   useEffect(() => {
     async function fetchPin() {
       const userId = await getCurrentUser();
