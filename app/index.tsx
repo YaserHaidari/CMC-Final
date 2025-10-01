@@ -6,7 +6,15 @@ import { getDatabase } from "firebase/database";
 import { router, usePathname } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import AuthLoaderScreen from "./AuthLoaderScreen";
 
+export function index() {
+  useEffect(() => {
+    router.replace("/AuthLoaderScreen");
+  }, []);
+
+  return null;
+}
 export default function HomeScreen() {
 
   const [ipAddress, setIpAddress] = useState(null);
@@ -64,7 +72,7 @@ export default function HomeScreen() {
         const user = await signInWithEmailAndPassword(auth, email, pwd);
         if (user.user) {
           console.log("User signed in:", user.user.email);
-          router.replace("/(drawer)");
+          router.replace("/home");
         } else {
           router.replace("/login");
         }
