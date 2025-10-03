@@ -48,6 +48,7 @@
     "firebase": "^11.6.0",
     "install": "^0.13.0",
     "ionicons": "^7.4.0",
+    "lucide-react-native": "^0.544.0",
     "nativewind": "^4.1.23",
     "npm": "^11.6.1",
     "react": "^19.1.0",
