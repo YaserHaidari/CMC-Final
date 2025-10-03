@@ -6,7 +6,34 @@ import { getDatabase } from "firebase/database";
 import { router, usePathname } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import AuthLoaderScreen from "./AuthLoaderScreen";
+import { getCurrentUser, getPIN, isPinEnabled } from "./storage";
 
+export function index() {
+  useEffect(() => {
+  async function redirectBasedOnPin() {
+    const userId = await getCurrentUser();
+    if (!userId) {
+      router.replace("/AuthLoaderScreen"); // normal login flow
+      return;
+    }
+
+    const enabled = await isPinEnabled(userId); // check current status
+    const pin = await getPIN(userId);
+
+    if (enabled && pin) {
+      router.replace("/pin"); // go to PIN login
+    } else {
+      router.replace("/login"); // PIN disabled -> go to login
+    }
+  }
+
+  redirectBasedOnPin();
+}, []);
+
+
+  return null;
+}
 export default function HomeScreen() {
 
   const [ipAddress, setIpAddress] = useState(null);
@@ -64,7 +91,7 @@ export default function HomeScreen() {
         const user = await signInWithEmailAndPassword(auth, email, pwd);
         if (user.user) {
           console.log("User signed in:", user.user.email);
-          router.replace("/(drawer)");
+          router.replace("./(drawer)");
         } else {
           router.replace("/login");
         }

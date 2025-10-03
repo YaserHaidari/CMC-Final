@@ -7,9 +7,8 @@ import SegmentedControl from "@react-native-segmented-control/segmented-control"
 import * as ImagePicker from "expo-image-picker";
 import AWS from "aws-sdk";
 import Constants from "expo-constants";
-
-// --- PIN helpers (adjust import path as needed) ---
-import { savePIN, getPIN, deletePIN } from '@/lib/storage';
+import { savePIN, getPIN, deletePIN} from '@/lib/storage';
+import AntDesign from "@expo/vector-icons/build/AntDesign";
 
 interface User {
     id: number;
@@ -59,20 +58,20 @@ export default function UpdateProfile() {
 
     // Experience levels for mentors
     const experienceLevels = ["Mid-level", "Senior", "Expert", "Principal", "Executive"];
-    
+
     // Common skills for cybersecurity
     const commonSkills = [
         "Network Security", "Ethical Hacking", "Penetration Testing", "Risk Assessment",
         "Incident Response", "Malware Analysis", "Cloud Security", "SIEM", "Vulnerability Assessment",
         "Cryptography", "Digital Forensics", "Compliance", "Security Architecture", "Threat Intelligence"
     ];
-    
+
     // Common industries
     const commonIndustries = [
         "Banking & Finance", "Healthcare", "Government", "Technology", "Consulting",
         "Telecommunications", "Energy", "Retail", "Education", "Manufacturing"
     ];
-    
+
     // Teaching styles
     const teachingStyles = [
         "Hands-on Practice", "Theoretical Learning", "Project-based", "Mentorship",
@@ -177,7 +176,7 @@ export default function UpdateProfile() {
                         Email: data.email || "",
                         location: data.location || ""
                     });
-                    
+
                     // If user is a mentor, fetch mentor profile data
                     if (data.user_type?.toLowerCase() === "mentor") {
                         fetchMentorProfile(data.id);
@@ -188,7 +187,7 @@ export default function UpdateProfile() {
         }
         fetchUser();
     }, [session]);
-    
+
     // Fetch mentor profile data
     async function fetchMentorProfile(userId: number) {
         const { data, error } = await supabase
@@ -196,7 +195,7 @@ export default function UpdateProfile() {
             .select("*")
             .eq("user_id", userId)
             .single();
-            
+
         if (!error && data) {
             setMentorProfile({
                 hourly_rate: data.hourly_rate,
@@ -213,14 +212,14 @@ export default function UpdateProfile() {
         }
     }
 
-    // Fetch PIN on mount
-    useEffect(() => {
-        async function fetchPin() {
-            const storedPin = await getPIN();
-            if (storedPin) setCurrentPin(storedPin);
-        }
-        fetchPin();
-    }, []);
+    // // Fetch PIN on mount
+    // useEffect(() => {
+    //     async function fetchPin() {
+    //         const storedPin = await getPIN();
+    //         if (storedPin) setCurrentPin(storedPin);
+    //     }
+    //     fetchPin();
+    // }, []);
 
     // Pick image
     async function pickImage() {
@@ -310,9 +309,9 @@ export default function UpdateProfile() {
         console.log('🔄 Update initiated for:', email);
         console.log('📝 Current form data:', newDetail);
         console.log('👤 Current user data:', user);
-        
+
         const updatedFields: any = {};
-        
+
         // Always include all fields, even if empty (to allow clearing fields)
         if (newDetail.Name !== undefined && newDetail.Name !== (user?.name || "")) {
             updatedFields.name = newDetail.Name;
@@ -419,6 +418,11 @@ export default function UpdateProfile() {
             </View>
         );
     }
+    const handlePress = (itemName: string) => {
+        if (itemName === "Security Settings") {
+            router.push("/PinLoginSettingsScreen");
+        }
+    };
 
     return (
         <KeyboardAvoidingView
@@ -426,9 +430,9 @@ export default function UpdateProfile() {
             keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
             style={styles.container}
         >
-            <ScrollView 
-                contentContainerStyle={{ flexGrow: 1 }} 
-                keyboardShouldPersistTaps="handled" 
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
                 style={styles.scrollView}
             >
                 <View style={styles.profileSection}>
@@ -492,7 +496,7 @@ export default function UpdateProfile() {
                                 {newDetail.location || "Select your city"}
                             </Text>
                         </TouchableOpacity>
-                        
+
                         {showLocationPicker && (
                             <View style={styles.pickerWrapper}>
                                 <Picker
@@ -515,7 +519,7 @@ export default function UpdateProfile() {
                         {user?.user_type?.toLowerCase() === "mentor" && (
                             <View style={styles.mentorSection}>
                                 <Text style={styles.sectionTitle}>Mentor Profile</Text>
-                                
+
                                 <Text style={styles.label}>Hourly Rate ($)</Text>
                                 <TextInput
                                     value={mentorProfile.hourly_rate?.toString() || ""}
@@ -545,7 +549,7 @@ export default function UpdateProfile() {
                                         {mentorProfile.experience_level || "Select experience level"}
                                     </Text>
                                 </TouchableOpacity>
-                                
+
                                 {showExperiencePicker && (
                                     <View style={styles.pickerWrapper}>
                                         <Picker
@@ -658,41 +662,64 @@ export default function UpdateProfile() {
                 )}
 
                 {/* --- PIN Section --- */}
-                <View style={styles.pinSection}>
-                    <Text style={styles.sectionTitle}>Security Settings</Text>
-                    <TextInput
-                        style={styles.pinInput}
-                        keyboardType="number-pad"
-                        secureTextEntry
-                        placeholder="Enter new PIN"
-                        placeholderTextColor="#6b7280"
-                        value={pin}
-                        onChangeText={setPin}
-                        maxLength={6}
-                    />
+                <View style={{ alignItems: 'center', marginTop: 8 }}>
                     <TouchableOpacity
-                        style={styles.pinButton}
-                        onPress={handleSetPin}
+                        onPress={() => handlePress("Security Settings")}
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginTop: 8,
+                            padding: 16,
+                            backgroundColor: '#f9fafb',
+                            borderWidth: 1,
+                            borderColor: '#d1d5db',
+                            width: '90%',
+                            borderRadius: 12,
+                        }}
                     >
-                        <Text style={styles.pinButtonText}>
-                            {currentPin ? "Change PIN" : "Set PIN"}
+                        <AntDesign name="lock" size={24} style={{ marginRight: 8 }} color="black" />
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'black', flex: 1 }}>
+                            Security Settings
                         </Text>
+                        <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
                     </TouchableOpacity>
                 </View>
 
+
                 {/* Delete Account Button - Moved to the end */}
                 {user && (
-                    <View style={styles.deleteSection}>
+                    <View
+                        style={{
+                            padding: 24,
+                            paddingTop: 8,
+                            marginTop: 32, // added marginTop
+                        }}
+                    >
                         <TouchableOpacity
                             onPress={() => deleteUser(user.email)}
-                            style={styles.deleteButton}
+                            style={{
+                                width: '100%',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                backgroundColor: '#dc2626',
+                                borderRadius: 12,
+                                height: 48,
+                                marginBottom: 32,
+                            }}
                         >
-                            <Text style={styles.deleteButtonText}>
+                            <Text
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: '500',
+                                    color: 'white',
+                                }}
+                            >
                                 Delete Account
                             </Text>
                         </TouchableOpacity>
                     </View>
                 )}
+
             </ScrollView>
         </KeyboardAvoidingView>
     );

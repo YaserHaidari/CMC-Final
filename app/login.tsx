@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getPIN } from '@/lib/storage';
+import { useEffect, useState } from "react";
+import { getCurrentUser, getPIN } from './storage';
 import {
     View,
     Text,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import loginUser from '@/lib/firebase/loginUser';
 import { useRouter } from "expo-router";
+import { isPinEnabled, saveCurrentUser, saveRememberedUser, getRememberedUser } from "./storage";
 
 export default function LoginScreen() {
     const [email, setEmail] = useState<string>('');
@@ -20,29 +21,59 @@ export default function LoginScreen() {
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
-    async function handleForm() {
-        if (!email || !pwd) {
-            setMessage("Please enter both email and password.");
-            return;
-        }
-        setIsLoading(true);
-        setMessage('');
+    useEffect(() => {
+    async function redirectIfPinEnabled() {
+        const userId = await getCurrentUser(); // get the last logged-in user
+        if (!userId) return; // no user, skip
 
-        const result = await loginUser(email, pwd);
-        console.log("Login result:", result);
-        setIsLoading(false);
-
-        if (result === true) {
-            const pin = await getPIN();
-            if (pin) {
-                router.replace("/pin");
-            } else {
-                router.replace("/(tabs)/home");
-            }
-        } else {
-            setMessage(result as string);
+        const rememberedUser = await getRememberedUser(userId); // pass userId here
+        if (rememberedUser) {
+            // User has PIN enabled, skip login page
+            router.replace("/pin");
         }
     }
+    redirectIfPinEnabled();
+}, []);
+
+
+
+    // Sanitize email for SecureStore key
+    const sanitizeUserId = (email: string) =>
+        email.replace(/[^a-zA-Z0-9._-]/g, "_");
+    async function handleForm() {
+  if (!email || !pwd) {
+    setMessage("Please enter both email and password.");
+    return;
+  }
+  setIsLoading(true);
+  setMessage("");
+
+  const result = await loginUser(email, pwd); // Firebase login
+  setIsLoading(false);
+
+  if (result === true) {
+    const userId = sanitizeUserId(email);
+
+    // Save current user safely
+    await saveCurrentUser(userId);
+
+    const enabled = await isPinEnabled(userId);
+    if (enabled) {
+      // Store credentials for PIN login
+      await saveRememberedUser(userId, email, pwd);
+
+      // Redirect to PIN screen
+      router.replace("/pin");
+    } else {
+      // Normal login
+      router.replace("/home");
+    }
+  } else {
+    setMessage(result as string);
+  }
+}
+
+
 
     function navigateToRegister() {
         if (isLoading) return;
@@ -164,8 +195,8 @@ export default function LoginScreen() {
                                 )}
                             </TouchableOpacity>
 
-                            {/* PIN Login Option */}
-                            <TouchableOpacity
+                            
+                            {/* <TouchableOpacity
                                 onPress={() => router.replace("/pin")}
                                 disabled={isLoading}
                                 className={`bg-white border-2 border-primary rounded-2xl py-4 items-center justify-center ${isLoading ? "opacity-60" : ""
@@ -176,7 +207,7 @@ export default function LoginScreen() {
                                         🔐 Login with PIN
                                     </Text>
                                 </View>
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                         </View>
 
                         {/* Bottom Links */}
