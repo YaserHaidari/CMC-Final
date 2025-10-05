@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '@/lib/supabase/initiliaze';
 import { ChatMessage, sendMessage, listenToMessages } from '@/lib/firebase/chatutilities';
+import { ImageBackground } from 'react-native';
+
 
 export default function ChatScreen() {
   const { recipientId, recipientName } = useLocalSearchParams<{
@@ -172,6 +174,12 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ImageBackground
+      source={require('@/assets/images/coffee-doodle.png')} // put your doodle here
+      style={styles.background}
+      imageStyle={{ opacity: 0.06, resizeMode: 'cover' }} // makes doodle faint & subtle
+    ></ImageBackground>
+    
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -231,11 +239,12 @@ export default function ChatScreen() {
         {/* Message Input */}
         <View style={styles.inputContainer}>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, { color: 'black' }]}
             value={newMessage}
             onChangeText={setNewMessage}
             placeholder="Type a message..."
             multiline
+            placeholderTextColor="#4d423dff"
             textAlignVertical="center"
             blurOnSubmit={false}
             onSubmitEditing={handleSendMessage}
@@ -267,21 +276,32 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#e3dcc6ff'
+  },
+   background: {
+    flex: 1,
+    width: '100%',
+    height: '98%',
+    top: 40,
+    position: 'absolute',
   },
   centerContainer: {
-    flex: 1,
+    flex: 0.8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    top: -60,
+    paddingVertical: 70,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    textAlign: 'center',
+    borderBottomColor: '#ebe9e5ff',
     backgroundColor: 'white',
+    minHeight: 0,
   },
   backButton: {
     padding: 8,
@@ -357,10 +377,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 50,
+    paddingTop: 10,
+    bottom: -35,
     backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#e3dcc6ff',
   },
   textInput: {
     flex: 1,
