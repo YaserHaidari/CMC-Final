@@ -223,71 +223,15 @@ export default function UpdateProfile() {
             });
         }
     }
-    fetchSession();
-
-    // // Fetch PIN on mount
-    // useEffect(() => {
-    //     async function fetchPin() {
-    //         const storedPin = await getPIN();
-    //         if (storedPin) setCurrentPin(storedPin);
-    //     }
-    //     fetchPin();
-    // }, []);
-
-    // Pick image
-    async function pickImage() {
-        try {
-            const image = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.8,
-            });
-
-            if (!image.canceled) {
-                setImgUri(image.assets[0].uri);
-            }
-        } catch (error) {
-            Alert.alert("Error", "Failed to pick an image.");
-        }
-        setLoading(false);
-      }
-    }
-    fetchUser();
-  }, [session]);
-
-  // Fetch mentor profile data
-  async function fetchMentorProfile(userId: number) {
-    const { data, error } = await supabase
-      .from("mentors")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
-
-    if (!error && data) {
-      setMentorProfile({
-        hourly_rate: data.hourly_rate,
-        skills: data.skills || [],
-        specialization_roles: data.specialization_roles || [],
-        experience_level: data.experience_level || "Mid-level",
-        years_of_experience: data.years_of_experience || 0,
-        teaching_style: data.teaching_style || [],
-        max_mentees: data.max_mentees || 5,
-        availability_hours_per_week: data.availability_hours_per_week,
-        industries: data.industries || [],
-        certifications: data.certifications || [],
-      });
-    }
-  }
 
   // Fetch PIN on mount
-  useEffect(() => {
-    async function fetchPin() {
-      const storedPin = await getPIN();
-      if (storedPin) setCurrentPin(storedPin);
-    }
-    fetchPin();
-  }, []);
+  // useEffect(() => {
+  //   async function fetchPin() {
+  //     const storedPin = await getPIN();
+  //     if (storedPin) setCurrentPin(storedPin);
+  //   }
+  //   fetchPin();
+  // }, []);
 
   // Pick image
   async function pickImage() {
@@ -999,4 +943,5 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
   },
-});
+
+})}}}

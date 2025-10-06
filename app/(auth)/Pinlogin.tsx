@@ -29,7 +29,7 @@ export default function LoginScreen() {
     });
 
     if (result.success) {
-      router.replace('/');
+      router.replace('/(tabs)/home');
     }
   };
 
@@ -44,7 +44,7 @@ export default function LoginScreen() {
       router.replace('/');
     } else {
       if (pin === savedPin) {
-        router.replace('/');
+        router.replace('/(tabs)/home');
       } else {
         Alert.alert('Invalid PIN', 'Please try again.');
       }
