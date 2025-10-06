@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { getPIN } from './storage';
+import { useEffect, useState } from "react";
+import { getCurrentUser, getPIN } from './storage';
 import {
     View,
     Text,
@@ -8,49 +8,72 @@ import {
     KeyboardAvoidingView,
     ScrollView,
     Platform,
-    ActivityIndicator // Added for loading state
+    ActivityIndicator,
 } from "react-native";
-// Adjust the import path if you moved loginUser.js
-import loginUser from './firebase/loginUser'; // Or your new path for the Supabase-only login function
+import loginUser from '@/lib/firebase/loginUser';
 import { useRouter } from "expo-router";
+import { isPinEnabled, saveCurrentUser, saveRememberedUser, getRememberedUser } from "./storage";
 
-export default function LoginScreen() { // Changed component name to LoginScreen for clarity
-
-    const [email, setEmail] = useState<string>(''); // Use string, not String
-    const [pwd, setPwd] = useState<string>('');   // Use string, not String
-    const [message, setMessage] = useState<string>(''); // Use string, not String
-    const [isLoading, setIsLoading] = useState(false); // Loading state
+export default function LoginScreen() {
+    const [email, setEmail] = useState<string>('');
+    const [pwd, setPwd] = useState<string>('');
+    const [message, setMessage] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
-    async function handleForm() {
-        if (!email || !pwd) {
-            setMessage("Please enter both email and password.");
-            return;
+    useEffect(() => {
+    async function redirectIfPinEnabled() {
+        const userId = await getCurrentUser(); // get the last logged-in user
+        if (!userId) return; // no user, skip
+
+        const rememberedUser = await getRememberedUser(userId); // pass userId here
+        if (rememberedUser) {
+            // User has PIN enabled, skip login page
+            router.replace("/pin");
         }
-        setIsLoading(true);
-        setMessage(''); // Clear previous messages
-
-        const result = await loginUser(email, pwd);
-        console.log("Login result:", result); // Log the result for debugging
-        setIsLoading(false);
-
-
-        if (result === true) {
-            const pin = await getPIN();
-            if (pin) {
-                // Existing user with PIN
-                router.replace("/pin");
-            } else {
-                // Existing user without PIN
-                router.replace("/home");
-            }
-        } else {
-            setMessage(result as string);
-        }
-
-
-
     }
+    redirectIfPinEnabled();
+}, []);
+
+
+
+    // Sanitize email for SecureStore key
+    const sanitizeUserId = (email: string) =>
+        email.replace(/[^a-zA-Z0-9._-]/g, "_");
+    async function handleForm() {
+  if (!email || !pwd) {
+    setMessage("Please enter both email and password.");
+    return;
+  }
+  setIsLoading(true);
+  setMessage("");
+
+  const result = await loginUser(email, pwd); // Firebase login
+  setIsLoading(false);
+
+  if (result === true) {
+    const userId = sanitizeUserId(email);
+
+    // Save current user safely
+    await saveCurrentUser(userId);
+
+    const enabled = await isPinEnabled(userId);
+    if (enabled) {
+      // Store credentials for PIN login
+      await saveRememberedUser(userId, email, pwd);
+
+      // Redirect to PIN screen
+      router.replace("/pin");
+    } else {
+      // Normal login
+      router.replace("/home");
+    }
+  } else {
+    setMessage(result as string);
+  }
+}
+
+
 
     function navigateToRegister() {
         if (isLoading) return;
@@ -58,88 +81,154 @@ export default function LoginScreen() { // Changed component name to LoginScreen
     }
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-            className="flex-1 bg-white"
-        >
-            <ScrollView
-                contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} // Added justifyContent
-                keyboardShouldPersistTaps="handled"
-                className="px-4" // Added some horizontal padding
+        <View className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100">
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+                className="flex-1"
             >
-                <View className="items-center">
-                    <Text className="text-4xl font-bold font-Title text-black text-center pt-5 pb-8">
-                        Coffee Meets Careers
-                    </Text>
-                    <Text className="text-3xl font-Menu text-center mb-2">Login</Text>
-                    <Text className="text-lg font-Menu text-center text-gray-600 pb-10">
-                        Sign in to continue
-                    </Text>
-                </View>
+                <ScrollView
+                    contentContainerStyle={{
+                        flexGrow: 1,
+                        paddingVertical: 40,
+                        paddingHorizontal: 24
+                    }}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Main Card Container */}
+                    <View className="w-full max-w-md mx-auto">
 
-                <View className="mb-6 mx-6">
-                    <Text className="text-base font-bold font-Menu text-gray-700 mb-1">Email</Text>
-                    <View className="flex-row items-center bg-gray-100 border border-gray-300 px-4 rounded-lg h-14">
-                        <TextInput
-                            className="flex-1 text-base font-Text text-gray-800"
-                            placeholder="someone@example.com"
-                            onChangeText={(text) => setEmail(text)}
-                            value={email}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            editable={!isLoading}
-                        />
+                        {/* Header Section */}
+                        <View className="items-center mb-6">
+                            {/* Logo/Icon Circle */}
+                            <View className="w-20 h-20 bg-primary rounded-full items-center justify-center mb-4 shadow-md">
+                                <Text className="text-white text-4xl font-bold">☕</Text>
+                            </View>
+
+                            <Text className="text-4xl font-bold font-Title text-gray-800 mb-2">
+                                Welcome Back
+                            </Text>
+                            <Text className="text-base text-gray-600 font-Menu">
+                                Sign in to continue your journey
+                            </Text>
+                        </View>
+
+                        {/* White Card */}
+                        <View
+                            className="bg-white rounded-3xl p-8 mb-6"
+                            style={{
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 8,
+                                elevation: 3,
+                            }}
+                        >
+
+                            {/* Email Input */}
+                            <View className="mb-5">
+                                <Text className="text-xs font-bold font-Menu text-gray-600 mb-2 ml-1 uppercase tracking-wide">
+                                    Email Address
+                                </Text>
+                                <View className="bg-gray-50 rounded-2xl border-2 border-gray-100 overflow-hidden">
+                                    <TextInput
+                                        className="px-4 py-4 text-base font-Text text-gray-800"
+                                        placeholder="john@example.com"
+                                        placeholderTextColor="#9CA3AF"
+                                        onChangeText={setEmail}
+                                        value={email}
+                                        keyboardType="email-address"
+                                        autoCapitalize="none"
+                                        editable={!isLoading}
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Password Input */}
+                            <View className="mb-6">
+                                <Text className="text-xs font-bold font-Menu text-gray-600 mb-2 ml-1 uppercase tracking-wide">
+                                    Password
+                                </Text>
+                                <View className="bg-gray-50 rounded-2xl border-2 border-gray-100 overflow-hidden">
+                                    <TextInput
+                                        className="px-4 py-4 text-base font-Text text-gray-800"
+                                        placeholder="••••••••"
+                                        placeholderTextColor="#9CA3AF"
+                                        onChangeText={setPwd}
+                                        value={pwd}
+                                        secureTextEntry={true}
+                                        editable={!isLoading}
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Message Display */}
+                            {message ? (
+                                <View className="mb-5 p-4 bg-red-50 rounded-2xl border-l-4 border-red-500">
+                                    <Text className="text-sm text-red-700 font-medium font-Menu leading-5">
+                                        {message}
+                                    </Text>
+                                </View>
+                            ) : null}
+
+                            {/* Login Button */}
+                            <TouchableOpacity
+                                onPress={handleForm}
+                                disabled={isLoading}
+                                className={`bg-primary rounded-2xl py-4 items-center justify-center mb-4 ${isLoading ? "opacity-60" : ""
+                                    }`}
+                                style={{
+                                    shadowColor: "#16519F",
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 4,
+                                    elevation: 4,
+                                }}
+                            >
+                                {isLoading ? (
+                                    <ActivityIndicator color="white" size="small" />
+                                ) : (
+                                    <Text className="text-lg font-bold font-Menu text-white">
+                                        Sign In
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+
+                            
+                            {/* <TouchableOpacity
+                                onPress={() => router.replace("/pin")}
+                                disabled={isLoading}
+                                className={`bg-white border-2 border-primary rounded-2xl py-4 items-center justify-center ${isLoading ? "opacity-60" : ""
+                                    }`}
+                            >
+                                <View className="flex-row items-center">
+                                    <Text className="text-base font-bold font-Menu text-primary mr-2">
+                                        🔐 Login with PIN
+                                    </Text>
+                                </View>
+                            </TouchableOpacity> */}
+                        </View>
+
+                        {/* Bottom Links */}
+                        <View className="flex-row justify-center items-center pt-4">
+                            <Text className="text-base text-gray-600 font-Menu">
+                                Don't have an account?
+                            </Text>
+                            <TouchableOpacity onPress={navigateToRegister} disabled={isLoading}>
+                                <Text className="text-base font-bold font-Menu text-primary ml-2">
+                                    Register
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Privacy Note */}
+                        <Text className="text-xs text-gray-500 text-center mt-8 font-Menu px-6 leading-5">
+                            By signing in, you agree to our Terms & Conditions
+                        </Text>
                     </View>
-                </View>
-
-                <View className="mb-8 mx-6">
-                    <Text className="text-base font-bold font-Menu text-gray-700 mb-1">Password</Text>
-                    <View className="flex-row items-center bg-gray-100 border border-gray-300 px-4 rounded-lg h-14">
-                        <TextInput
-                            className="flex-1 text-base font-Text text-black"
-                            secureTextEntry={true}
-                            placeholder="Password"
-                            onChangeText={(text) => setPwd(text)}
-                            value={pwd}
-                            editable={!isLoading}
-                        />
-                    </View>
-                </View>
-
-                <View className="mx-6 mb-8">
-                    <TouchableOpacity
-                        onPress={handleForm}
-                        disabled={isLoading}
-                        className={`flex-row bg-primary px-4 rounded-lg h-14 items-center justify-center ${isLoading ? "opacity-50" : ""}`}
-                    >
-                        {isLoading ? (
-                            <ActivityIndicator color="white" />
-                        ) : (
-                            <Text className="text-xl font-Menu text-white font-medium">Log In</Text>
-                        )}
-                    </TouchableOpacity>
-                    {message && (
-                        <Text className="text-center text-red-600 mt-4 text-sm px-2">
-                            {message}
-                        </Text>
-                    )}
-                </View>
-
-                <View className="items-center pb-10">
-                    <TouchableOpacity onPress={navigateToRegister} disabled={isLoading}>
-                        <Text className="text-base font-Menu text-center text-gray-500">
-                            Don't have an account? <Text className="text-primary font-semibold">Register</Text>
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={()=> router.replace ("/pin")} disabled={isLoading} className="mt-4">
-                        <Text className="text-base font-Menu text-center text-gray-500">
-                            Login with <Text className="text-primary font-semibold">PIN</Text>
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
-        
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </View>
     );
 }

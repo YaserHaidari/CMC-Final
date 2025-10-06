@@ -1,33 +1,37 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
+import { getDatabase } from "firebase/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
 
 export const firebaseConfig = {
   apiKey: "AIzaSyC_3uNrdj_Ny_68fIlWLCxFXCIfYxW7KWM",
   authDomain: "cmc-db-final.firebaseapp.com",
+  databaseURL: "https://cmc-db-final-default-rtdb.firebaseio.com/", // Added for Realtime Database
   projectId: "cmc-db-final",
   storageBucket: "cmc-db-final.firebasestorage.app",
   messagingSenderId: "931051452635",
   appId: "1:931051452635:web:53ba3e0194d3705530b4fe",
   measurementId: "G-E8EH6HD13J"
 };
-//  Initialize Firebase app
+
+// Initialize Firebase app
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-//  Setup persistent auth 
+// Setup persistent auth 
 let auth;
 try {
   auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage)
   });
 } catch (error) {
-  
   auth = getAuth(app);
 }
 
-//  Firestore
+// Firestore
 const db = getFirestore(app);
 
-export { app, auth, db };
+// Realtime Database
+const database = getDatabase(app);
+
+export { app, auth, db, database };
