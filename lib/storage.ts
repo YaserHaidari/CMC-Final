@@ -4,7 +4,7 @@ export async function savePIN(pin: string) {
   await SecureStore.setItemAsync("userPIN", pin);
 }
 
-export async function getPIN() {
+export async function getPIN(userId: string) {
   return await SecureStore.getItemAsync("userPIN");
 }
 
