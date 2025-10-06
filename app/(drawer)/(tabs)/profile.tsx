@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/initiliaze";
 import { useRouter, useFocusEffect } from "expo-router";
 import AntDesign from '@expo/vector-icons/AntDesign';
-import Fontisto from '@expo/vector-icons/Fontisto';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
@@ -17,6 +16,7 @@ interface User {
   bio: string;
   Location: string;
   DOB: string;
+  skills?: string[];
 }
 
 export default function ProfileScreen() {
@@ -27,7 +27,7 @@ export default function ProfileScreen() {
 
   // Fetch session and user data
   useEffect(() => {
-    async function fetchSessionAndUser() {
+    const fetchSessionAndUser = async () => {
       setLoading(true);
       const currentSession = await supabase.auth.getSession();
       setSession(currentSession.data.session);
@@ -35,33 +35,34 @@ export default function ProfileScreen() {
       if (currentSession.data.session?.user) {
         const authUser = currentSession.data.session.user;
         const userEmail = authUser.email;
-        const userId = authUser.id;
-        
-        console.log('Auth User Info:', { userId, userEmail });
-        
-        // Try to find user by email first
-        let { data, error } = await supabase
+
+        // Fetch user data from users table
+        const { data, error } = await supabase
           .from("users")
           .select("*")
           .eq("email", userEmail)
           .limit(1);
 
-        console.log('User fetch by email result:', { data, error: error?.message, dataLength: data?.length });
-        
-        // If no user found by email, try to find all users to debug
-        if (!data || data.length === 0) {
-          console.log('No user found by email, checking all users...');
-          const { data: allUsers, error: allError } = await supabase
-            .from("users")
-            .select("id, email, name")
-            .limit(5);
-          console.log('Sample users in database:', allUsers, 'Error:', allError?.message);
-        }
-        
         if (!error && data && data.length > 0) {
-          const userData = data[0]; // Take the first user if multiple exist
-          console.log('Setting user data:', userData);
-          // Map the database fields to your User interface
+          const userData = data[0];
+
+          // Fetch skills from mentees table
+          const { data: menteeData } = await supabase
+            .from("mentees")
+            .select("skills")
+            .eq("user_id", authUser.id)
+            .single();
+
+          // Parse skills correctly
+          let menteeSkills: string[] = [];
+          if (menteeData?.skills) {
+            menteeSkills = Array.isArray(menteeData.skills)
+              ? menteeData.skills
+              : menteeData.skills.replace(/[{}]/g, '').split(',').map((s: string) => s.trim());
+          }
+
+          console.log("Fetched mentee skills:", menteeSkills); // ✅ See skills in console
+
           setUser({
             id: userData.id,
             created_at: userData.created_at,
@@ -70,68 +71,41 @@ export default function ProfileScreen() {
             email: userData.email,
             name: userData.name,
             bio: userData.bio || "",
-            Location: userData.location || "", // Note: interface uses uppercase L
-            DOB: userData.DOB || ""
+            Location: userData.location || "",
+            DOB: userData.DOB || "",
+            skills: menteeSkills,
           });
         } else {
-          console.log('User not found in users table, creating fallback profile');
-          // Create a fallback user profile using auth data
           setUser({
-            id: 0, // Temporary ID
+            id: 0,
             created_at: new Date().toISOString(),
-            user_type: "Student", // Default type
+            user_type: "Student",
             photoURL: "",
             email: userEmail || "No email",
             name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || "User",
             bio: "Profile not set up yet",
             Location: "Not specified",
-            DOB: ""
+            DOB: "",
+            skills: [],
           });
         }
       }
+
       setLoading(false);
-    }
+    };
 
     fetchSessionAndUser();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        if (session?.user) {
-          const userEmail = session.user.email;
-          
-          // Fetch from users table using email
-          supabase
-            .from("users")
-            .select("*")
-            .eq("email", userEmail)
-            .limit(1)
-            .then(({ data, error }) => {
-              if (!error && data && data.length > 0) {
-                const userData = data[0];
-                setUser({
-                  id: userData.id,
-                  created_at: userData.created_at,
-                  user_type: userData.user_type,
-                  photoURL: userData.photoURL || "",
-                  email: userData.email,
-                  name: userData.name,
-                  bio: userData.bio || "",
-                  Location: userData.location || "",
-                  DOB: userData.DOB || ""
-                });
-              }
-            });
-        }
-      }
-    );
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
 
-  // Refresh profile when screen comes into focus (e.g., after updating profile)
+  // Refresh profile when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       const refreshProfile = async () => {
@@ -144,6 +118,19 @@ export default function ProfileScreen() {
 
           if (!error && data && data.length > 0) {
             const userData = data[0];
+            const { data: menteeData } = await supabase
+              .from("mentees")
+              .select("skills")
+              .eq("user_id", session.user.id)
+              .single();
+
+            let menteeSkills: string[] = [];
+            if (menteeData?.skills) {
+              menteeSkills = Array.isArray(menteeData.skills)
+                ? menteeData.skills
+                : menteeData.skills.replace(/[{}]/g, '').split(',').map((s: string) => s.trim());
+            }
+
             setUser({
               id: userData.id,
               created_at: userData.created_at,
@@ -153,17 +140,16 @@ export default function ProfileScreen() {
               name: userData.name,
               bio: userData.bio || "",
               Location: userData.location || "",
-              DOB: userData.DOB || ""
+              DOB: userData.DOB || "",
+              skills: menteeSkills,
             });
           }
         }
       };
-
       refreshProfile();
     }, [session])
   );
 
-  // Logout and navigation
   const logoutFunction = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -178,13 +164,6 @@ export default function ProfileScreen() {
   return (
     <ScrollView className="flex-1 bg-white">
       <View className='pt-4 pb-8'>
-        {/* Debug info - remove in production */}
-        <View className="bg-blue-50 p-2 m-4 rounded">
-          <Text className="text-xs text-blue-800">
-            Debug: Loading={loading.toString()}, User={user ? 'Found' : 'Not Found'}, Session={session ? 'Yes' : 'No'}
-          </Text>
-        </View>
-        
         {loading ? (
           <>
             <ActivityIndicator className="mt-8" />
@@ -208,52 +187,78 @@ export default function ProfileScreen() {
               <Text className="text-base text-gray-600">{user.user_type}</Text>
             </View>
 
-            <Text className='text-xl font-bold mt-6 ml-6 md:ml-8'>
-              Profile Details
-            </Text>
+            <Text className='text-xl font-bold mt-6 ml-6 md:ml-8'>Profile Details</Text>
             <View className='items-center mt-2'>
               <TouchableOpacity
                 onPress={() => handlePress("Edit Profile")}
                 className='flex-row items-center mt-2 p-4 bg-gray-50 border border-gray-200 w-11/12 md:w-5/6 rounded-t-lg active:bg-gray-200'
               >
                 <AntDesign name='edit' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>
-                  Edit Profile
-                </Text>
+                <Text className='text-lg ml-4 flex-1'>Edit Profile</Text>
                 <AntDesign name='right' size={20} className='ml-auto' color="gray" />
               </TouchableOpacity>
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6 active:bg-gray-200'>
-                <Fontisto name='email' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>
-                  {user.email}
-                </Text>
+
+              {/* Email */}
+              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
+                <AntDesign name='mail' size={24} className='ml-2' color="black" />
+                <Text className='text-lg ml-4 flex-1'>{user.email}</Text>
               </View>
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6 active:bg-gray-200'>
+
+              {/* User Type */}
+              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
                 <MaterialIcons name='person' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>
-                  {user.user_type}
-                </Text>
+                <Text className='text-lg ml-4 flex-1'>{user.user_type}</Text>
               </View>
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6 active:bg-gray-200'>
+
+              {/* Bio */}
+              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
                 <Ionicons name='information-circle-outline' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>
-                  {user.bio || "No bio"}
-                </Text>
+                <Text className='text-lg ml-4 flex-1'>{user.bio || "No bio"}</Text>
               </View>
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6 active:bg-gray-200'>
-                <Fontisto name='date' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>
-                  {user.DOB || "Date of Birth"}
-                </Text>
+
+              {/* Skills: Only visible for mentees */}
+              {user.user_type.toLowerCase() === "mentee" && (
+                <View
+                  className='flex-row items-start p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'
+                  style={{ paddingRight: 16 }}
+                >
+                  <AntDesign name='star' size={24} className='mr-4 mt-1' color="black" />
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1 }}>
+                    {user.skills && user.skills.length > 0 ? (
+                      user.skills.map((skill, index) => (
+                        <Text
+                          key={index}
+                          style={{
+                            marginRight: 24,
+                            marginBottom: 8,
+                            fontSize: 14,
+                            color: '#1f2937',
+                          }}
+                        >
+                          {skill}
+                        </Text>
+                      ))
+                    ) : (
+                      <Text style={{ color: '#6b7280' }}>No skills added</Text>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* DOB */}
+              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
+                <AntDesign name='calendar' size={24} className='ml-2' color="black" />
+                <Text className='text-lg ml-4 flex-1'>{user.DOB || "Date of Birth"}</Text>
               </View>
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6 rounded-b-lg active:bg-gray-200'>
+
+              {/* Location */}
+              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6 rounded-b-lg'>
                 <Ionicons name='location-outline' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>
-                  {user.Location || "Location"}
-                </Text>
+                <Text className='text-lg ml-4 flex-1'>{user.Location || "Location"}</Text>
               </View>
             </View>
 
+            {/* Sign Out */}
             <View className='items-center mt-8'>
               <TouchableOpacity
                 onPress={logoutFunction}
@@ -273,38 +278,12 @@ export default function ProfileScreen() {
               {session ? 'Logged in but no profile found' : 'No active session'}
             </Text>
             <TouchableOpacity
-              onPress={() => {
+              onPress={async () => {
                 setLoading(true);
                 setUser(null);
-                // Retry loading by calling the fetch function again
-                const retry = async () => {
-                  const currentSession = await supabase.auth.getSession();
-                  setSession(currentSession.data.session);
-                  if (currentSession.data.session?.user) {
-                    const userEmail = currentSession.data.session.user.email;
-                    const { data } = await supabase
-                      .from("users")
-                      .select("*")
-                      .eq("email", userEmail)
-                      .limit(1);
-                    
-                    if (data && data.length > 0) {
-                      setUser({
-                        id: data[0].id,
-                        created_at: data[0].created_at,
-                        user_type: data[0].user_type,
-                        photoURL: data[0].photoURL || "",
-                        email: data[0].email,
-                        name: data[0].name,
-                        bio: data[0].bio || "",
-                        Location: data[0].location || "",
-                        DOB: data[0].DOB || ""
-                      });
-                    }
-                  }
-                  setLoading(false);
-                };
-                retry();
+                const currentSession = await supabase.auth.getSession();
+                setSession(currentSession.data.session);
+                setLoading(false);
               }}
               className="bg-blue-500 px-4 py-2 rounded"
             >
