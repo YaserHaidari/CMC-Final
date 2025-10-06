@@ -19,9 +19,8 @@ import SegmentedControl from "@react-native-segmented-control/segmented-control"
 import * as ImagePicker from "expo-image-picker";
 import AWS from "aws-sdk";
 import Constants from "expo-constants";
-
-// --- PIN helpers (adjust import path as needed) ---
-import { savePIN, getPIN, deletePIN } from "@/lib/storage";
+import { savePIN, getPIN, deletePIN} from '@/lib/storage';
+import AntDesign from "@expo/vector-icons/build/AntDesign";
 
 interface User {
   id: number;
@@ -49,194 +48,207 @@ interface MentorProfile {
 }
 
 export default function UpdateProfile() {
-  const [newDetail, setNewDetail] = useState({
-    Name: "",
-    Bio: "",
-    Role: "",
-    DOB: "",
-    Email: "",
-    location: "",
-  });
-  const [mentorProfile, setMentorProfile] = useState<MentorProfile>({
-    hourly_rate: null,
-    skills: [],
-    specialization_roles: [],
-    experience_level: "Mid-level",
-    years_of_experience: 0,
-    teaching_style: [],
-    max_mentees: 5,
-    availability_hours_per_week: null,
-    industries: [],
-    certifications: [],
-  });
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
-  const [showExperiencePicker, setShowExperiencePicker] = useState(false);
+    const [newDetail, setNewDetail] = useState({ Name: "", Bio: "", Role: "", DOB: "", Email: "", location: "" });
+    const [mentorProfile, setMentorProfile] = useState<MentorProfile>({
+        hourly_rate: null,
+        skills: [],
+        specialization_roles: [],
+        experience_level: "Mid-level",
+        years_of_experience: 0,
+        teaching_style: [],
+        max_mentees: 5,
+        availability_hours_per_week: null,
+        industries: [],
+        certifications: []
+    });
+    const [user, setUser] = useState<User | null>(null);
+    const [session, setSession] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [uploading, setUploading] = useState(false);
+    const [showLocationPicker, setShowLocationPicker] = useState(false);
+    const [showExperiencePicker, setShowExperiencePicker] = useState(false);
 
-  // Experience levels for mentors
-  const experienceLevels = [
-    "Mid-level",
-    "Senior",
-    "Expert",
-    "Principal",
-    "Executive",
-  ];
+    // Experience levels for mentors
+    const experienceLevels = ["Mid-level", "Senior", "Expert", "Principal", "Executive"];
 
-  // Common skills for cybersecurity
-  const commonSkills = [
-    "Network Security",
-    "Ethical Hacking",
-    "Penetration Testing",
-    "Risk Assessment",
-    "Incident Response",
-    "Malware Analysis",
-    "Cloud Security",
-    "SIEM",
-    "Vulnerability Assessment",
-    "Cryptography",
-    "Digital Forensics",
-    "Compliance",
-    "Security Architecture",
-    "Threat Intelligence",
-  ];
+    // Common skills for cybersecurity
+    const commonSkills = [
+        "Network Security", "Ethical Hacking", "Penetration Testing", "Risk Assessment",
+        "Incident Response", "Malware Analysis", "Cloud Security", "SIEM", "Vulnerability Assessment",
+        "Cryptography", "Digital Forensics", "Compliance", "Security Architecture", "Threat Intelligence"
+    ];
 
-  // Common industries
-  const commonIndustries = [
-    "Banking & Finance",
-    "Healthcare",
-    "Government",
-    "Technology",
-    "Consulting",
-    "Telecommunications",
-    "Energy",
-    "Retail",
-    "Education",
-    "Manufacturing",
-  ];
+    // Common industries
+    const commonIndustries = [
+        "Banking & Finance", "Healthcare", "Government", "Technology", "Consulting",
+        "Telecommunications", "Energy", "Retail", "Education", "Manufacturing"
+    ];
 
-  // Teaching styles
-  const teachingStyles = [
-    "Hands-on Practice",
-    "Theoretical Learning",
-    "Project-based",
-    "Mentorship",
-    "Group Discussion",
-    "Case Studies",
-    "Real-world Scenarios",
-    "Interactive Workshops",
-  ];
+    // Teaching styles
+    const teachingStyles = [
+        "Hands-on Practice", "Theoretical Learning", "Project-based", "Mentorship",
+        "Group Discussion", "Case Studies", "Real-world Scenarios", "Interactive Workshops"
+    ];
 
-  // Australian cities list
-  const australianCities = [
-    "Adelaide, SA",
-    "Albany, WA",
-    "Albury-Wodonga, NSW/VIC",
-    "Alice Springs, NT",
-    "Ballarat, VIC",
-    "Bendigo, VIC",
-    "Brisbane, QLD",
-    "Broken Hill, NSW",
-    "Broome, WA",
-    "Bundaberg, QLD",
-    "Bunbury, WA",
-    "Cairns, QLD",
-    "Canberra, ACT",
-    "Coffs Harbour, NSW",
-    "Darwin, NT",
-    "Dubbo, NSW",
-    "Geelong, VIC",
-    "Geraldton, WA",
-    "Gladstone, QLD",
-    "Gold Coast, QLD",
-    "Hervey Bay, QLD",
-    "Hobart, TAS",
-    "Kalgoorlie-Boulder, WA",
-    "Launceston, TAS",
-    "Mackay, QLD",
-    "Mandurah, WA",
-    "Melbourne, VIC",
-    "Mildura, VIC",
-    "Mount Gambier, SA",
-    "Newcastle, NSW",
-    "Orange, NSW",
-    "Perth, WA",
-    "Port Augusta, SA",
-    "Port Hedland, WA",
-    "Port Lincoln, SA",
-    "Port Macquarie, NSW",
-    "Rockhampton, QLD",
-    "Shepparton, VIC",
-    "Sunshine Coast, QLD",
-    "Sydney, NSW",
-    "Tamworth, NSW",
-    "Toowoomba, QLD",
-    "Townsville, QLD",
-    "Traralgon, VIC",
-    "Wagga Wagga, NSW",
-    "Warrnambool, VIC",
-    "Whyalla, SA",
-    "Wollongong, NSW",
-  ];
-  const [imgUri, setImgUri] = useState<string | null>(null);
-  const router = useRouter();
+    // Australian cities list
+    const australianCities = [
+        "Adelaide, SA",
+        "Albany, WA",
+        "Albury-Wodonga, NSW/VIC",
+        "Alice Springs, NT",
+        "Ballarat, VIC",
+        "Bendigo, VIC",
+        "Brisbane, QLD",
+        "Broken Hill, NSW",
+        "Broome, WA",
+        "Bundaberg, QLD",
+        "Bunbury, WA",
+        "Cairns, QLD",
+        "Canberra, ACT",
+        "Coffs Harbour, NSW",
+        "Darwin, NT",
+        "Dubbo, NSW",
+        "Geelong, VIC",
+        "Geraldton, WA",
+        "Gladstone, QLD",
+        "Gold Coast, QLD",
+        "Hervey Bay, QLD",
+        "Hobart, TAS",
+        "Kalgoorlie-Boulder, WA",
+        "Launceston, TAS",
+        "Mackay, QLD",
+        "Mandurah, WA",
+        "Melbourne, VIC",
+        "Mildura, VIC",
+        "Mount Gambier, SA",
+        "Newcastle, NSW",
+        "Orange, NSW",
+        "Perth, WA",
+        "Port Augusta, SA",
+        "Port Hedland, WA",
+        "Port Lincoln, SA",
+        "Port Macquarie, NSW",
+        "Rockhampton, QLD",
+        "Shepparton, VIC",
+        "Sunshine Coast, QLD",
+        "Sydney, NSW",
+        "Tamworth, NSW",
+        "Toowoomba, QLD",
+        "Townsville, QLD",
+        "Traralgon, VIC",
+        "Wagga Wagga, NSW",
+        "Warrnambool, VIC",
+        "Whyalla, SA",
+        "Wollongong, NSW"
+    ];
+    const [imgUri, setImgUri] = useState<string | null>(null);
+    const router = useRouter();
 
-  // PIN state
-  const [pin, setPin] = useState("");
-  const [currentPin, setCurrentPin] = useState("");
+    // PIN state
+    const [pin, setPin] = useState("");
+    const [currentPin, setCurrentPin] = useState("");
 
-  // AWS S3 config
-  const s3 = new AWS.S3({
-    accessKeyId: Constants.expoConfig?.extra?.AWS_ACCESS_KEY_ID ?? "",
-    secretAccessKey: Constants.expoConfig?.extra?.AWS_SECRET_ACCESS_KEY ?? "",
-    region: Constants.expoConfig?.extra?.AWS_REGION ?? "",
-  });
-  const S3_BUCKET =
-    Constants.expoConfig?.extra?.AWS_S3_BUCKET_NAME ?? "your-s3-bucket-name";
+    // AWS S3 config
+    const s3 = new AWS.S3({
+        accessKeyId: Constants.expoConfig?.extra?.AWS_ACCESS_KEY_ID ?? "",
+        secretAccessKey: Constants.expoConfig?.extra?.AWS_SECRET_ACCESS_KEY ?? "",
+        region: Constants.expoConfig?.extra?.AWS_REGION ?? "",
+    });
+    const S3_BUCKET = Constants.expoConfig?.extra?.AWS_S3_BUCKET_NAME ?? "your-s3-bucket-name";
 
-  // Fetch session and user data
-  useEffect(() => {
-    async function fetchSession() {
-      const currentSession = await supabase.auth.getSession();
-      setSession(currentSession.data.session);
+    // Fetch session and user data
+    useEffect(() => {
+        async function fetchSession() {
+            const currentSession = await supabase.auth.getSession();
+            setSession(currentSession.data.session);
+        }
+        fetchSession();
+
+        const { data: authListener } = supabase.auth.onAuthStateChange(
+            (_event, session) => setSession(session)
+        );
+        return () => {
+            authListener.subscription.unsubscribe();
+        };
+    }, []);
+
+    // Fetch user data
+    useEffect(() => {
+        async function fetchUser() {
+            if (session && session.user) {
+                setLoading(true);
+                const { error, data } = await supabase.from("users").select("*").eq("email", session.user.email).single();
+                if (!error) {
+                    setUser(data);
+                    setNewDetail({
+                        Name: data.name || "",
+                        Bio: data.bio || "",
+                        Role: data.user_type || "",
+                        DOB: data.DOB || "",
+                        Email: data.email || "",
+                        location: data.location || ""
+                    });
+
+                    // If user is a mentor, fetch mentor profile data
+                    if (data.user_type?.toLowerCase() === "mentor") {
+                        fetchMentorProfile(data.id);
+                    }
+                }
+                setLoading(false);
+            }
+        }
+        fetchUser();
+    }, [session]);
+
+    // Fetch mentor profile data
+    async function fetchMentorProfile(userId: number) {
+        const { data, error } = await supabase
+            .from("mentors")
+            .select("*")
+            .eq("user_id", userId)
+            .single();
+
+        if (!error && data) {
+            setMentorProfile({
+                hourly_rate: data.hourly_rate,
+                skills: data.skills || [],
+                specialization_roles: data.specialization_roles || [],
+                experience_level: data.experience_level || "Mid-level",
+                years_of_experience: data.years_of_experience || 0,
+                teaching_style: data.teaching_style || [],
+                max_mentees: data.max_mentees || 5,
+                availability_hours_per_week: data.availability_hours_per_week,
+                industries: data.industries || [],
+                certifications: data.certifications || []
+            });
+        }
     }
     fetchSession();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => setSession(session)
-    );
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+    // // Fetch PIN on mount
+    // useEffect(() => {
+    //     async function fetchPin() {
+    //         const storedPin = await getPIN();
+    //         if (storedPin) setCurrentPin(storedPin);
+    //     }
+    //     fetchPin();
+    // }, []);
 
-  // Fetch user data
-  useEffect(() => {
-    async function fetchUser() {
-      if (session && session.user) {
-        setLoading(true);
-        const { error, data } = await supabase
-          .from("users")
-          .select("*")
-          .eq("email", session.user.email)
-          .single();
-        if (!error) {
-          setUser(data);
-          setNewDetail({
-            Name: data.name || "",
-            Bio: data.bio || "",
-            Role: data.user_type || "",
-            DOB: data.DOB || "",
-            Email: data.email || "",
-            location: data.location || "",
-          });
+    // Pick image
+    async function pickImage() {
+        try {
+            const image = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
 
-          // If user is a mentor, fetch mentor profile data
-          if (data.user_type?.toLowerCase() === "mentor") {
-            fetchMentorProfile(data.id);
-          }
+            if (!image.canceled) {
+                setImgUri(image.assets[0].uri);
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to pick an image.");
         }
         setLoading(false);
       }
@@ -399,7 +411,33 @@ export default function UpdateProfile() {
       updatedFields.location = newDetail.location;
     }
 
-    console.log("📦 Fields to update:", updatedFields);
+    // Handle update
+    const handleSubmit = async (email: string) => {
+        console.log('🔄 Update initiated for:', email);
+        console.log('📝 Current form data:', newDetail);
+        console.log('👤 Current user data:', user);
+
+        const updatedFields: any = {};
+
+        // Always include all fields, even if empty (to allow clearing fields)
+        if (newDetail.Name !== undefined && newDetail.Name !== (user?.name || "")) {
+            updatedFields.name = newDetail.Name;
+        }
+        if (newDetail.Bio !== undefined && newDetail.Bio !== (user?.bio || "")) {
+            updatedFields.bio = newDetail.Bio;
+        }
+        if (newDetail.Role !== undefined && newDetail.Role !== (user?.user_type || "")) {
+            updatedFields.user_type = newDetail.Role;
+        }
+        if (newDetail.DOB !== undefined && newDetail.DOB !== (user?.DOB || "")) {
+            updatedFields.DOB = newDetail.DOB;
+        }
+        if (newDetail.Email !== undefined && newDetail.Email !== (user?.email || "")) {
+            updatedFields.email = newDetail.Email;
+        }
+        if (newDetail.location !== undefined && newDetail.location !== (user?.location || "")) {
+            updatedFields.location = newDetail.location;
+        }
 
     // Update user profile
     let userUpdateSuccess = true;
@@ -476,402 +514,312 @@ export default function UpdateProfile() {
       Alert.alert("PIN too short", "Use at least 4 digits");
       return;
     }
-    savePIN(pin);
-    setCurrentPin(pin);
-    setPin("");
-    Alert.alert("Success", "Your PIN has been set/changed");
-  };
+    const handlePress = (itemName: string) => {
+        if (itemName === "Security Settings") {
+            router.push("/PinLoginSettingsScreen");
+        }
+    };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
-
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-        style={styles.scrollView}
-      >
-        <View style={styles.profileSection}>
-          <TouchableOpacity onPress={handleAvatarPress} disabled={uploading}>
-            <Image
-              style={styles.profileAvatar}
-              source={{
-                uri:
-                  imgUri ||
-                  user?.photoURL ||
-                  "https://avatar.iran.liara.run/public/41",
-              }}
-            />
-            {uploading && (
-              <ActivityIndicator
-                style={styles.uploadingIndicator}
-                size="large"
-                color="#3b82f6"
-              />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {user && (
-          <View style={styles.formContainer}>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              value={newDetail.Name}
-              onChangeText={(text) =>
-                setNewDetail((prev) => ({ ...prev, Name: text }))
-              }
-              style={styles.input}
-              placeholderTextColor="#6b7280"
-            />
-            <Text style={styles.label}>Bio</Text>
-            <TextInput
-              value={newDetail.Bio}
-              onChangeText={(text) =>
-                setNewDetail((prev) => ({ ...prev, Bio: text }))
-              }
-              style={[styles.input, styles.multilineInput]}
-              placeholderTextColor="#6b7280"
-              multiline
-            />
-
-            <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
-              value={newDetail.DOB}
-              onChangeText={(text) =>
-                setNewDetail((prev) => ({ ...prev, DOB: text }))
-              }
-              style={styles.input}
-              placeholderTextColor="#6b7280"
-              placeholder="YYYY-MM-DD"
-            />
-
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              value={newDetail.Email}
-              onChangeText={(text) =>
-                setNewDetail((prev) => ({ ...prev, Email: text }))
-              }
-              style={styles.input}
-              placeholderTextColor="#6b7280"
-              keyboardType="email-address"
-            />
-
-            <Text style={styles.label}>Location</Text>
-            <TouchableOpacity
-              style={styles.pickerContainer}
-              onPress={() => setShowLocationPicker(!showLocationPicker)}
+        <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+            style={styles.container}
+        >
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
+                style={styles.scrollView}
             >
-              <Text
-                style={[
-                  styles.pickerText,
-                  !newDetail.location && styles.placeholderText,
-                ]}
-              >
-                {newDetail.location || "Select your city"}
-              </Text>
-            </TouchableOpacity>
+                <View style={styles.profileSection}>
+                    <TouchableOpacity onPress={handleAvatarPress} disabled={uploading}>
+                        <Image
+                            style={styles.profileAvatar}
+                            source={{ uri: imgUri || user?.photoURL || 'https://avatar.iran.liara.run/public/41' }}
+                        />
+                        {uploading && (
+                            <ActivityIndicator
+                                style={styles.uploadingIndicator}
+                                size="large"
+                                color="#3b82f6"
+                            />
+                        )}
+                    </TouchableOpacity>
+                </View>
 
-            {showLocationPicker && (
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={newDetail.location}
-                  onValueChange={(itemValue) => {
-                    setNewDetail((prev) => ({ ...prev, location: itemValue }));
-                    setShowLocationPicker(false);
-                  }}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Select your city" value="" />
-                  {australianCities.map((city, index) => (
-                    <Picker.Item key={index} label={city} value={city} />
-                  ))}
-                </Picker>
-              </View>
-            )}
-            {/* Mentee-specific button */}
-            {user?.user_type?.toLowerCase() === "mentee" && (
-              <TouchableOpacity
-                onPress={() => router.push("/skills")}
-                style={{
-                  backgroundColor: "#f3f4f6",
-                  paddingVertical: 14,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  marginVertical: 16,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{ color: "#111827", fontSize: 15, fontWeight: "600" }}
-                >
-                  Add Skills and Interests &gt;
-                </Text>
-              </TouchableOpacity>
-            )}
+                {user && (
+                    <View style={styles.formContainer}>
+                        <Text style={styles.label}>Name</Text>
+                        <TextInput
+                            value={newDetail.Name}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, Name: text }))}
+                            style={styles.input}
+                            placeholderTextColor="#6b7280"
+                        />
+                        <Text style={styles.label}>Bio</Text>
+                        <TextInput
+                            value={newDetail.Bio}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, Bio: text }))}
+                            style={[styles.input, styles.multilineInput]}
+                            placeholderTextColor="#6b7280"
+                            multiline
+                        />
 
-            {/* Mentor-specific fields */}
-            {user?.user_type?.toLowerCase() === "mentor" && (
-              <View style={styles.mentorSection}>
-                <Text style={styles.sectionTitle}>Mentor Profile</Text>
+                        <Text style={styles.label}>Date of Birth</Text>
+                        <TextInput
+                            value={newDetail.DOB}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, DOB: text }))}
+                            style={styles.input}
+                            placeholderTextColor="#6b7280"
+                            placeholder="YYYY-MM-DD"
+                        />
 
-                <Text style={styles.label}>Hourly Rate ($)</Text>
-                <TextInput
-                  value={mentorProfile.hourly_rate?.toString() || ""}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      hourly_rate: text ? parseInt(text) : null,
-                    }))
-                  }
-                  style={styles.input}
-                  placeholderTextColor="#6b7280"
-                  placeholder="e.g. 50"
-                  keyboardType="numeric"
-                />
+                        <Text style={styles.label}>Email</Text>
+                        <TextInput
+                            value={newDetail.Email}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, Email: text }))}
+                            style={styles.input}
+                            placeholderTextColor="#6b7280"
+                            keyboardType="email-address"
+                        />
 
-                <Text style={styles.label}>Years of Experience</Text>
-                <TextInput
-                  value={mentorProfile.years_of_experience.toString()}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      years_of_experience: parseInt(text) || 0,
-                    }))
-                  }
-                  style={styles.input}
-                  placeholderTextColor="#6b7280"
-                  placeholder="e.g. 5"
-                  keyboardType="numeric"
-                />
+                        <Text style={styles.label}>Location</Text>
+                        <TouchableOpacity
+                            style={styles.pickerContainer}
+                            onPress={() => setShowLocationPicker(!showLocationPicker)}
+                        >
+                            <Text style={[styles.pickerText, !newDetail.location && styles.placeholderText]}>
+                                {newDetail.location || "Select your city"}
+                            </Text>
+                        </TouchableOpacity>
 
-                <Text style={styles.label}>Experience Level</Text>
-                <TouchableOpacity
-                  style={styles.pickerContainer}
-                  onPress={() => setShowExperiencePicker(!showExperiencePicker)}
-                >
-                  <Text
-                    style={[
-                      styles.pickerText,
-                      !mentorProfile.experience_level && styles.placeholderText,
-                    ]}
-                  >
-                    {mentorProfile.experience_level ||
-                      "Select experience level"}
-                  </Text>
-                </TouchableOpacity>
+                        {showLocationPicker && (
+                            <View style={styles.pickerWrapper}>
+                                <Picker
+                                    selectedValue={newDetail.location}
+                                    onValueChange={(itemValue) => {
+                                        setNewDetail(prev => ({ ...prev, location: itemValue }));
+                                        setShowLocationPicker(false);
+                                    }}
+                                    style={styles.picker}
+                                >
+                                    <Picker.Item label="Select your city" value="" />
+                                    {australianCities.map((city, index) => (
+                                        <Picker.Item key={index} label={city} value={city} />
+                                    ))}
+                                </Picker>
+                            </View>
+                        )}
 
-                {showExperiencePicker && (
-                  <View style={styles.pickerWrapper}>
-                    <Picker
-                      selectedValue={mentorProfile.experience_level}
-                      onValueChange={(itemValue) => {
-                        setMentorProfile((prev) => ({
-                          ...prev,
-                          experience_level: itemValue,
-                        }));
-                        setShowExperiencePicker(false);
-                      }}
-                      style={styles.picker}
-                    >
-                      {experienceLevels.map((level, index) => (
-                        <Picker.Item key={index} label={level} value={level} />
-                      ))}
-                    </Picker>
-                  </View>
+                        {/* Mentor-specific fields */}
+                        {user?.user_type?.toLowerCase() === "mentor" && (
+                            <View style={styles.mentorSection}>
+                                <Text style={styles.sectionTitle}>Mentor Profile</Text>
+
+                                <Text style={styles.label}>Hourly Rate ($)</Text>
+                                <TextInput
+                                    value={mentorProfile.hourly_rate?.toString() || ""}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, hourly_rate: text ? parseInt(text) : null }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 50"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Years of Experience</Text>
+                                <TextInput
+                                    value={mentorProfile.years_of_experience.toString()}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, years_of_experience: parseInt(text) || 0 }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 5"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Experience Level</Text>
+                                <TouchableOpacity
+                                    style={styles.pickerContainer}
+                                    onPress={() => setShowExperiencePicker(!showExperiencePicker)}
+                                >
+                                    <Text style={[styles.pickerText, !mentorProfile.experience_level && styles.placeholderText]}>
+                                        {mentorProfile.experience_level || "Select experience level"}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {showExperiencePicker && (
+                                    <View style={styles.pickerWrapper}>
+                                        <Picker
+                                            selectedValue={mentorProfile.experience_level}
+                                            onValueChange={(itemValue) => {
+                                                setMentorProfile(prev => ({ ...prev, experience_level: itemValue }));
+                                                setShowExperiencePicker(false);
+                                            }}
+                                            style={styles.picker}
+                                        >
+                                            {experienceLevels.map((level, index) => (
+                                                <Picker.Item key={index} label={level} value={level} />
+                                            ))}
+                                        </Picker>
+                                    </View>
+                                )}
+
+                                <Text style={styles.label}>Maximum Mentees</Text>
+                                <TextInput
+                                    value={mentorProfile.max_mentees.toString()}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, max_mentees: parseInt(text) || 5 }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 5"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Availability (hours per week)</Text>
+                                <TextInput
+                                    value={mentorProfile.availability_hours_per_week?.toString() || ""}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, availability_hours_per_week: text ? parseInt(text) : null }))}
+                                    style={styles.input}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="e.g. 10"
+                                    keyboardType="numeric"
+                                />
+
+                                <Text style={styles.label}>Skills (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.skills.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, skills: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Network Security, Ethical Hacking, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Specialization Roles (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.specialization_roles.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, specialization_roles: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Security Analyst, Penetration Tester, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Industries (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.industries.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, industries: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Banking, Healthcare, Technology, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Teaching Style (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.teaching_style.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, teaching_style: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="Hands-on Practice, Project-based, etc."
+                                    multiline
+                                />
+
+                                <Text style={styles.label}>Certifications (comma-separated)</Text>
+                                <TextInput
+                                    value={mentorProfile.certifications.join(", ")}
+                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, certifications: text.split(",").map(s => s.trim()).filter(s => s) }))}
+                                    style={[styles.input, styles.multilineInput]}
+                                    placeholderTextColor="#6b7280"
+                                    placeholder="CISSP, CEH, OSCP, etc."
+                                    multiline
+                                />
+                            </View>
+                        )}
+
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity
+                                onPress={handleCancel}
+                                style={[styles.button, styles.cancelButton]}
+                            >
+                                <Text style={styles.cancelButtonText}>
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => handleSubmit(user.email)}
+                                style={[styles.button, styles.updateButton]}
+                            >
+                                <Text style={styles.updateButtonText}>
+                                    Update
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 )}
 
-                <Text style={styles.label}>Maximum Mentees</Text>
-                <TextInput
-                  value={mentorProfile.max_mentees.toString()}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      max_mentees: parseInt(text) || 5,
-                    }))
-                  }
-                  style={styles.input}
-                  placeholderTextColor="#6b7280"
-                  placeholder="e.g. 5"
-                  keyboardType="numeric"
-                />
+                {/* --- PIN Section --- */}
+                <View style={{ alignItems: 'center', marginTop: 8 }}>
+                    <TouchableOpacity
+                        onPress={() => handlePress("Security Settings")}
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginTop: 8,
+                            padding: 16,
+                            backgroundColor: '#f9fafb',
+                            borderWidth: 1,
+                            borderColor: '#d1d5db',
+                            width: '90%',
+                            borderRadius: 12,
+                        }}
+                    >
+                        <AntDesign name="lock" size={24} style={{ marginRight: 8 }} color="black" />
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'black', flex: 1 }}>
+                            Security Settings
+                        </Text>
+                        <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
+                    </TouchableOpacity>
+                </View>
 
-                <Text style={styles.label}>Availability (hours per week)</Text>
-                <TextInput
-                  value={
-                    mentorProfile.availability_hours_per_week?.toString() || ""
-                  }
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      availability_hours_per_week: text ? parseInt(text) : null,
-                    }))
-                  }
-                  style={styles.input}
-                  placeholderTextColor="#6b7280"
-                  placeholder="e.g. 10"
-                  keyboardType="numeric"
-                />
 
-                <Text style={styles.label}>Skills (comma-separated)</Text>
-                <TextInput
-                  value={mentorProfile.skills.join(", ")}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      skills: text
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s),
-                    }))
-                  }
-                  style={[styles.input, styles.multilineInput]}
-                  placeholderTextColor="#6b7280"
-                  placeholder="Network Security, Ethical Hacking, etc."
-                  multiline
-                />
+                {/* Delete Account Button - Moved to the end */}
+                {user && (
+                    <View
+                        style={{
+                            padding: 24,
+                            paddingTop: 8,
+                            marginTop: 32, // added marginTop
+                        }}
+                    >
+                        <TouchableOpacity
+                            onPress={() => deleteUser(user.email)}
+                            style={{
+                                width: '100%',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                backgroundColor: '#dc2626',
+                                borderRadius: 12,
+                                height: 48,
+                                marginBottom: 32,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 18,
+                                    fontWeight: '500',
+                                    color: 'white',
+                                }}
+                            >
+                                Delete Account
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
 
-                <Text style={styles.label}>
-                  Specialization Roles (comma-separated)
-                </Text>
-                <TextInput
-                  value={mentorProfile.specialization_roles.join(", ")}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      specialization_roles: text
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s),
-                    }))
-                  }
-                  style={[styles.input, styles.multilineInput]}
-                  placeholderTextColor="#6b7280"
-                  placeholder="Security Analyst, Penetration Tester, etc."
-                  multiline
-                />
-
-                <Text style={styles.label}>Industries (comma-separated)</Text>
-                <TextInput
-                  value={mentorProfile.industries.join(", ")}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      industries: text
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s),
-                    }))
-                  }
-                  style={[styles.input, styles.multilineInput]}
-                  placeholderTextColor="#6b7280"
-                  placeholder="Banking, Healthcare, Technology, etc."
-                  multiline
-                />
-
-                <Text style={styles.label}>
-                  Teaching Style (comma-separated)
-                </Text>
-                <TextInput
-                  value={mentorProfile.teaching_style.join(", ")}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      teaching_style: text
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s),
-                    }))
-                  }
-                  style={[styles.input, styles.multilineInput]}
-                  placeholderTextColor="#6b7280"
-                  placeholder="Hands-on Practice, Project-based, etc."
-                  multiline
-                />
-
-                <Text style={styles.label}>
-                  Certifications (comma-separated)
-                </Text>
-                <TextInput
-                  value={mentorProfile.certifications.join(", ")}
-                  onChangeText={(text) =>
-                    setMentorProfile((prev) => ({
-                      ...prev,
-                      certifications: text
-                        .split(",")
-                        .map((s) => s.trim())
-                        .filter((s) => s),
-                    }))
-                  }
-                  style={[styles.input, styles.multilineInput]}
-                  placeholderTextColor="#6b7280"
-                  placeholder="CISSP, CEH, OSCP, etc."
-                  multiline
-                />
-              </View>
-            )}
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                onPress={handleCancel}
-                style={[styles.button, styles.cancelButton]}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleSubmit(user.email)}
-                style={[styles.button, styles.updateButton]}
-              >
-                <Text style={styles.updateButtonText}>Update</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* --- PIN Section --- */}
-        <View style={styles.pinSection}>
-          <Text style={styles.sectionTitle}>Security Settings</Text>
-          <TextInput
-            style={styles.pinInput}
-            keyboardType="number-pad"
-            secureTextEntry
-            placeholder="Enter new PIN"
-            placeholderTextColor="#6b7280"
-            value={pin}
-            onChangeText={setPin}
-            maxLength={6}
-          />
-          <TouchableOpacity style={styles.pinButton} onPress={handleSetPin}>
-            <Text style={styles.pinButtonText}>
-              {currentPin ? "Change PIN" : "Set PIN"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Delete Account Button - Moved to the end */}
-        {user && (
-          <View style={styles.deleteSection}>
-            <TouchableOpacity
-              onPress={() => deleteUser(user.email)}
-              style={styles.deleteButton}
-            >
-              <Text style={styles.deleteButtonText}>Delete Account</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
+            </ScrollView>
+        </KeyboardAvoidingView>
+    );
 }
 
 const styles = StyleSheet.create({

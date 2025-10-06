@@ -48,6 +48,7 @@ function RootLayout() {
           "profile",
           "register",
           "settings",
+          "PinLoginSettingsScreen",
         ];
         if (typeof screen === "string" && allowedScreens.includes(screen)) {
           router.push(
@@ -63,6 +64,7 @@ function RootLayout() {
               | `/profile`
               | `/register`
               | `/settings`
+              | `/PinLoginSettingsScreen`
           );
         }
       }
@@ -95,6 +97,7 @@ function RootLayout() {
           />
 
           <Stack.Screen name="chat" options={{ headerShown: false }} />
+          <Stack.Screen name="PinLoginSettingsScreen" options={{ title: 'Setting' }} />
         </Stack>
       </MenuProvider>
     </GestureHandlerRootView>

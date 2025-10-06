@@ -265,7 +265,9 @@ export default function ProfileScreen() {
                 className='flex-row items-center justify-center mt-4 p-4 bg-red-500 w-11/12 md:w-5/6 rounded-lg active:bg-red-600'
               >
                 <MaterialIcons name='logout' size={24} className='mr-2' color="white" />
-                <Text className='text-lg text-white font-semibold'>Sign Out</Text>
+                <Text className='text-lg text-white font-semibold'>
+                  Log Out
+                </Text>
               </TouchableOpacity>
             </View>
           </>
