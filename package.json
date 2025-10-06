@@ -59,6 +59,10 @@
     "react-native-reanimated": "~4.1.0",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.10.0",
+<<<<<<< HEAD
+=======
+    "react-native-svg": "15.12.1",
+>>>>>>> e40e5383 (pulled pin login, working fine)
     "react-native-web": "^0.20.0",
     "react-native-webview": "13.13.5",
     "react-native-worklets": "0.5.1",
