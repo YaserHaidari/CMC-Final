@@ -25,13 +25,35 @@ function FriendOptions({
   onToggle,
   onBlock,
   onTestimonial,
+  isBlocked,
 }: {
   friend: Friend;
   isOpen: boolean;
   onToggle: () => void;
   onBlock: (f: Friend) => void;
   onTestimonial: (f: Friend) => void;
+  isBlocked: boolean;
 }) {
+  const confirmBlock = () => {
+    Alert.alert(
+      isBlocked ? "Unblock User" : "Block User",
+      `Are you sure you want to ${isBlocked ? "unblock" : "block"} ${
+        friend.name
+      }?`,
+      [
+        { text: "Cancel", style: "cancel", onPress: () => onToggle() },
+        {
+          text: isBlocked ? "Unblock" : "Block",
+          style: "destructive",
+          onPress: () => {
+            onToggle();
+            onBlock(friend);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View className="relative items-center">
       {/* Options button */}
@@ -47,26 +69,23 @@ function FriendOptions({
       {isOpen && (
         <View
           className="absolute right-0 top-12 w-44 bg-white rounded-lg shadow-lg z-50"
-          style={{ elevation: 10 }} // ensure Android shadow
+          style={{ elevation: 10 }}
         >
           <TouchableOpacity
             className="px-4 py-3 border-b border-gray-100"
-            onPress={() => {
-              onToggle(); // close menu first (UI)
-              onBlock(friend); // call your existing block logic
-            }}
-            accessibilityLabel={`block-${friend.auth_id}`}
+            onPress={confirmBlock}
           >
-            <Text className="text-sm text-gray-800">Block / Unblock</Text>
+            <Text className="text-sm text-gray-800">
+              {isBlocked ? "Unblock User" : "Block User"}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             className="px-4 py-3"
             onPress={() => {
-              onToggle(); // close menu
-              onTestimonial(friend);
+              onToggle();
+              onTestimonial(friend); // navigate immediately
             }}
-            accessibilityLabel={`testimonial-${friend.auth_id}`}
           >
             <Text className="text-sm text-gray-800">Write Testimonial</Text>
           </TouchableOpacity>
@@ -407,6 +426,7 @@ export default function Friends() {
                   params: { mentorId: f.auth_id, mentorName: f.name },
                 })
               }
+              isBlocked={blockedByMe.includes(friend.auth_id)}
             />
           </View>
         ))
