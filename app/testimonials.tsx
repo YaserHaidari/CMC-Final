@@ -58,14 +58,12 @@ export default function TestimonialsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [canWrite, setCanWrite] = useState(false);
 
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     if (mentorId) {
       loadInitialData();
-      checkCanWriteTestimonial();
     }
   }, [mentorId]);
 
@@ -99,24 +97,9 @@ export default function TestimonialsScreen() {
     }
   };
 
-  const checkCanWriteTestimonial = async () => {
-    const isEligible = await testimonialService.isCurrentUserMentee();
-    if (isEligible) {
-      const menteeId = await testimonialService.getCurrentMenteeId();
-      if (menteeId) {
-        const canWriteReview = await testimonialService.canWriteTestimonial(
-          mentorId,  // ✅ UUID not int
-          menteeId
-        );
-        setCanWrite(canWriteReview);
-      }
-    }
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadTestimonialData(true);
-    await checkCanWriteTestimonial();
     setRefreshing(false);
   };
 
@@ -138,7 +121,7 @@ export default function TestimonialsScreen() {
     return (
       <View className="flex-1 bg-gray-50 justify-center items-center">
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text className="text-gray-600 mt-4">Loading reviews...</Text>
+        <Text className="text-gray-600 mt-4">Loading testimonials...</Text>
       </View>
     );
   }
@@ -155,22 +138,11 @@ export default function TestimonialsScreen() {
           <View className="bg-white rounded-xl p-8 items-center shadow-sm border border-gray-100">
             <Text className="text-6xl mb-4">📝</Text>
             <Text className="text-xl font-bold text-gray-900 mb-2 text-center">
-              No Reviews Yet
+              No Testimonials Yet
             </Text>
             <Text className="text-gray-600 text-center mb-6 leading-relaxed">
-              {mentorName ? `${mentorName} hasn't` : "This mentor hasn't"} received any reviews yet. 
-              Be the first to share your experience!
+              {mentorName ? `${mentorName} hasn't` : "This mentor hasn't"} received any testimonials yet.
             </Text>
-            {canWrite && (
-              <TouchableOpacity
-                onPress={handleWriteTestimonial}
-                className="bg-blue-600 rounded-xl py-4 px-8"
-              >
-                <Text className="text-white font-semibold text-lg">
-                  Write First Review
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
       </ScrollView>
@@ -190,28 +162,20 @@ export default function TestimonialsScreen() {
           <View className="flex-row items-center justify-between mb-6">
             <View>
               <Text className="text-2xl font-bold text-gray-900 mb-2">
-                {mentorName ? `${mentorName}'s Reviews` : 'Reviews'}
+                {mentorName ? `${mentorName}'s Testimonials` : 'Testimonials'}
               </Text>
               <View className="flex-row items-center space-x-4">
                 <StarRating rating={stats.average_rating} />
-                <View>
+                <View className="ml-4">
                   <Text className="text-3xl font-bold text-gray-900">
                     {stats.average_rating.toFixed(1)}
                   </Text>
                   <Text className="text-gray-600 text-sm">
-                    {stats.total_reviews} review{stats.total_reviews !== 1 ? 's' : ''}
+                    {stats.total_reviews} testimonial{stats.total_reviews !== 1 ? 's' : ''}
                   </Text>
                 </View>
               </View>
             </View>
-            {canWrite && (
-              <TouchableOpacity
-                onPress={handleWriteTestimonial}
-                className="bg-blue-600 rounded-lg py-3 px-4"
-              >
-                <Text className="text-white font-semibold">Write Review</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Rating Distribution */}
@@ -230,7 +194,7 @@ export default function TestimonialsScreen() {
         {/* Testimonials List */}
         <View className="mb-4">
           <Text className="text-lg font-semibold text-gray-900 mb-4 px-1">
-            All Reviews ({stats.total_reviews})
+            All Testimonials ({stats.total_reviews})
           </Text>
           {testimonials.map((testimonial) => (
             <TestimonialCard key={testimonial.id} testimonial={testimonial} />
@@ -250,13 +214,13 @@ export default function TestimonialsScreen() {
                 <Text className="text-gray-600 font-medium ml-2">Loading more...</Text>
               </View>
             ) : (
-              <Text className="text-gray-700 font-medium">Load More Reviews</Text>
+              <Text className="text-gray-700 font-medium">Load More Testimonials</Text>
             )}
           </TouchableOpacity>
         )}
         {!hasMore && testimonials.length > 0 && (
           <View className="items-center py-4">
-            <Text className="text-gray-500 text-sm">You've seen all reviews</Text>
+            <Text className="text-gray-500 text-sm">You've seen all testimonials</Text>
           </View>
         )}
       </View>

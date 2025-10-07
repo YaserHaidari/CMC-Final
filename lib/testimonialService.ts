@@ -159,24 +159,13 @@ class TestimonialService {
     try {
       const mentorId = await this.getMentorIdFromUserId(mentorUserId);
 
-      const { data, error } = await supabase.rpc(
-        "get_mentor_testimonial_stats",
+      const { data, error } = await supabase.rpc("get_mentor_testimonial_stats",
         { mentor_id_param: mentorId }
       );
 
       if (error) throw error;
-      if (!data || data.length === 0) return null;
-
-      const row = data[0];
-      return {
-        total_reviews: row.total,
-        average_rating: row.round || 0,
-        rating_1: row.r1,
-        rating_2: row.r2,
-        rating_3: row.r3,
-        rating_4: row.r4,
-        rating_5: row.r5,
-      };
+      return data && data.length ? data[0] : null;
+      
     } catch (err) {
       console.error("Error fetching mentor testimonial stats:", err);
       return null;

@@ -98,13 +98,6 @@ export const TestimonialsSummary: React.FC<TestimonialsSummaryProps> = ({
     }
   };
 
-  const handleWriteTestimonial = () => {
-    router.push({
-      pathname: '/writeTestimonial',
-      params: { mentorId }
-    });
-  };
-
   const handleShowMore = () => {
     setShowMore(true);
     loadTestimonialData();
@@ -122,14 +115,6 @@ export const TestimonialsSummary: React.FC<TestimonialsSummaryProps> = ({
     return (
       <View className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <Text className="text-gray-600 text-center mb-4">No reviews yet</Text>
-        {canWrite && showWriteButton && (
-          <TouchableOpacity
-            onPress={handleWriteTestimonial}
-            className="bg-blue-600 rounded-lg py-3 px-6 items-center"
-          >
-            <Text className="text-white font-semibold">Write First Review</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   }
@@ -163,15 +148,6 @@ export const TestimonialsSummary: React.FC<TestimonialsSummaryProps> = ({
             </View>
           </View>
         </View>
-        
-        {canWrite && showWriteButton && (
-          <TouchableOpacity
-            onPress={handleWriteTestimonial}
-            className="bg-blue-600 rounded-lg py-2 px-4"
-          >
-            <Text className="text-white font-semibold">Write Review</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Rating Distribution */}
