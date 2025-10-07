@@ -21,109 +21,53 @@ export interface TestimonialStats {
 }
 
 export interface CreateTestimonialData {
-  mentor_id: number;
+  mentorUserId: string; // UUID of mentor from users table
   mentee_id: number;
   testimonial_text: string;
   rating: number;
 }
 
 class TestimonialService {
-  /**
-   * Get testimonial statistics for a mentor
-   */
-  async getMentorStats(mentorId: number): Promise<TestimonialStats | null> {
+  // --- Helper to convert mentor UUID to mentorid PK ---
+  private async getMentorIdFromUserId(mentorUserId: string): Promise<number> {
     try {
       const { data, error } = await supabase
-        .rpc('get_mentor_testimonial_stats', { mentor_id_param: mentorId });
+        .from("mentors")
+        .select("mentorid")
+        .eq("user_id", mentorUserId)
+        .single();
 
       if (error) throw error;
-      
-      return data?.[0] || {
-        total_reviews: 0,
-        average_rating: 0,
-        rating_1: 0,
-        rating_2: 0,
-        rating_3: 0,
-        rating_4: 0,
-        rating_5: 0,
-      };
-    } catch (error) {
-      console.error('Error fetching mentor stats:', error);
-      return null;
+      if (!data) throw new Error("Mentor not found");
+      return data.mentorid;
+    } catch (err) {
+      console.error("Error resolving mentorid from user_id:", err);
+      throw err;
     }
   }
 
-  /**
-   * Get testimonials for a mentor with pagination
-   */
-  async getMentorTestimonials(
-    mentorId: number,
-    limit: number = 5,
-    offset: number = 0
-  ): Promise<Testimonial[]> {
-    try {
-      const { data, error } = await supabase
-        .rpc('get_mentor_testimonials', {
-          mentor_id_param: mentorId,
-          limit_param: limit,
-          offset_param: offset
-        });
-
-      if (error) throw error;
-      
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching mentor testimonials:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Check if a mentee can write a testimonial for a mentor
-   */
-  async canWriteTestimonial(mentorId: number, menteeId: number): Promise<boolean> {
-    try {
-      const { data, error } = await supabase
-        .rpc('can_write_testimonial', {
-          mentor_id_param: mentorId,
-          mentee_id_param: menteeId
-        });
-
-      if (error) throw error;
-      
-      return data === true;
-    } catch (error) {
-      console.error('Error checking testimonial eligibility:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Create a new testimonial
-   */
   async createTestimonial(testimonialData: CreateTestimonialData): Promise<boolean> {
     try {
+      // Convert mentor UUID to mentorid (int)
+      const mentorId = await this.getMentorIdFromUserId(testimonialData.mentorUserId);
+
       const { error } = await supabase
-        .from('testimonials')
+        .from("testimonials")
         .insert({
-          mentor_id: testimonialData.mentor_id,
+          mentor_id: mentorId,
           mentee_id: testimonialData.mentee_id,
           testimonial_text: testimonialData.testimonial_text,
           rating: testimonialData.rating,
         });
 
       if (error) throw error;
-      
       return true;
     } catch (error) {
-      console.error('Error creating testimonial:', error);
+      console.error("Error creating testimonial:", error);
       throw error;
     }
   }
 
-  /**
-   * Update an existing testimonial (only if not approved)
-   */
   async updateTestimonial(
     testimonialId: string,
     updates: Partial<Pick<CreateTestimonialData, 'testimonial_text' | 'rating'>>
@@ -136,7 +80,6 @@ class TestimonialService {
         .eq('is_approved', false);
 
       if (error) throw error;
-      
       return true;
     } catch (error) {
       console.error('Error updating testimonial:', error);
@@ -144,59 +87,48 @@ class TestimonialService {
     }
   }
 
-  /**
-   * Get current user's mentee ID
-   */
   async getCurrentMenteeId(): Promise<number | null> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) return null;
 
       const { data, error } = await supabase
         .from('mentees')
-        .select('id')
+        .select('menteeid')
         .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
-      
-      return data?.id || null;
+      return data?.menteeid || null;
     } catch (error) {
       console.error('Error getting current mentee ID:', error);
       return null;
     }
   }
 
-  /**
-   * Check if current user is a mentee
-   */
   async isCurrentUserMentee(): Promise<boolean> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) return false;
 
       const { data, error } = await supabase
         .from('users')
         .select('user_type')
-        .eq('id', user.id)
+        .eq('auth_user_id', user.id)
         .single();
 
       if (error) throw error;
-      
-      return data?.user_type === 'mentee';
+      return data?.user_type === 'Mentee';
     } catch (error) {
       console.error('Error checking user type:', error);
       return false;
     }
   }
 
-  /**
-   * Get testimonial by mentor and mentee ID (to check if already exists)
-   */
-  async getExistingTestimonial(mentorId: number, menteeId: number): Promise<any> {
+  async getExistingTestimonial(mentorUserId: string, menteeId: number): Promise<any> {
     try {
+      const mentorId = await this.getMentorIdFromUserId(mentorUserId);
+
       const { data, error } = await supabase
         .from('testimonials')
         .select('*')
@@ -205,10 +137,25 @@ class TestimonialService {
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      
       return data;
     } catch (error) {
       console.error('Error getting existing testimonial:', error);
+      return null;
+    }
+  }
+
+  async getUserNameById(userId: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("name")
+        .eq("auth_user_id", userId)
+        .single();
+
+      if (error) throw error;
+      return data?.name || null;
+    } catch (err) {
+      console.error("Error fetching user name:", err);
       return null;
     }
   }

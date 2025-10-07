@@ -43,6 +43,7 @@ export default function WriteTestimonialScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [canSubmit, setCanSubmit] = useState(false);
   const [existingTestimonial, setExistingTestimonial] = useState<any>(null);
+  const [mentorName, setMentorName] = useState<string | null>(null);
 
   const maxLength = 500;
   const minLength = 10;
@@ -61,6 +62,14 @@ export default function WriteTestimonialScreen() {
         Alert.alert('Error', 'Invalid mentor ID');
         router.back();
         return;
+      }
+
+      // Fetch mentor's name from users table
+      try {
+        const fetchedName = await testimonialService.getUserNameById(mentorId);
+        setMentorName(fetchedName);
+      } catch (err) {
+        console.error("Could not fetch mentor name", err);
       }
 
       const isEligible = await testimonialService.isCurrentUserMentee();
@@ -82,14 +91,13 @@ export default function WriteTestimonialScreen() {
 
       // Check if testimonial already exists
       const existing = await testimonialService.getExistingTestimonial(
-        parseInt(mentorId),
+        mentorId, // pass mentor UUID here
         menteeId
       );
 
       if (existing) {
         setExistingTestimonial(existing);
         if (!existing.is_approved) {
-          // Allow editing if not approved yet
           setRating(existing.rating);
           setTestimonialText(existing.testimonial_text);
           setCanSubmit(true);
@@ -125,13 +133,9 @@ export default function WriteTestimonialScreen() {
       }
 
       if (existingTestimonial && !existingTestimonial.is_approved) {
-        // Update existing testimonial
         const success = await testimonialService.updateTestimonial(
           existingTestimonial.id,
-          {
-            testimonial_text: testimonialText,
-            rating: rating
-          }
+          { testimonial_text: testimonialText, rating }
         );
 
         if (success) {
@@ -144,12 +148,12 @@ export default function WriteTestimonialScreen() {
           throw new Error('Failed to update review');
         }
       } else {
-        // Create new testimonial
+        // Create new testimonial using mentorUserId
         await testimonialService.createTestimonial({
-          mentor_id: parseInt(mentorId!),
+          mentorUserId: mentorId,
           mentee_id: menteeId,
           testimonial_text: testimonialText,
-          rating: rating
+          rating
         });
 
         Alert.alert(
@@ -160,9 +164,8 @@ export default function WriteTestimonialScreen() {
       }
     } catch (error: any) {
       console.error('Error submitting testimonial:', error);
-      
+
       let errorMessage = 'An error occurred while submitting your review.';
-      
       if (error.message?.includes('duplicate')) {
         errorMessage = 'You have already submitted a review for this mentor.';
       } else if (error.message?.includes('foreign key')) {
@@ -187,11 +190,17 @@ export default function WriteTestimonialScreen() {
   return (
     <ScrollView className="flex-1 bg-gray-50">
       <View className="p-4">
-        {/* Header */}
         <View className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-100">
           <Text className="text-2xl font-bold text-gray-900 mb-2">
             {existingTestimonial ? 'Edit Your Review' : 'Write a Review'}
           </Text>
+
+          {mentorName && (
+            <Text className="text-blue-600 font-semibold text-lg mb-2">
+              For: {mentorName}
+            </Text>
+          )}
+
           <Text className="text-gray-600">
             Share your experience to help other students find great mentors.
           </Text>
@@ -234,23 +243,21 @@ export default function WriteTestimonialScreen() {
               numberOfLines={6}
               textAlignVertical="top"
               className="text-base text-gray-900 min-h-[120px]"
-              maxLength={maxLength}
+              maxLength={500}
             />
           </View>
           <View className="flex-row justify-between items-center">
             <Text className="text-sm text-gray-500">
-              Minimum {minLength} characters required
+              Minimum 10 characters required
             </Text>
-            <Text className={`text-sm ${
-              charactersRemaining < 50 ? 'text-red-500' : 'text-gray-500'
-            }`}>
+            <Text className={`text-sm ${charactersRemaining < 50 ? 'text-red-500' : 'text-gray-500'}`}>
               {charactersRemaining} characters remaining
             </Text>
           </View>
           {testimonialText.length > 0 && !isTextValid && (
             <Text className="text-red-500 text-sm mt-2">
-              {testimonialText.length < minLength 
-                ? `Please write at least ${minLength} characters.`
+              {testimonialText.length < 10 
+                ? `Please write at least 10 characters.`
                 : 'Your review is too long. Please shorten it.'
               }
             </Text>
@@ -274,9 +281,7 @@ export default function WriteTestimonialScreen() {
             onPress={handleSubmit}
             disabled={!isFormValid || isSubmitting}
             className={`rounded-xl py-4 px-6 items-center ${
-              isFormValid && !isSubmitting
-                ? 'bg-blue-600'
-                : 'bg-gray-300'
+              isFormValid && !isSubmitting ? 'bg-blue-600' : 'bg-gray-300'
             }`}
           >
             {isSubmitting ? (
@@ -287,14 +292,12 @@ export default function WriteTestimonialScreen() {
                 </Text>
               </View>
             ) : (
-              <Text className={`font-semibold text-lg ${
-                isFormValid ? 'text-white' : 'text-gray-500'
-              }`}>
+              <Text className={`font-semibold text-lg ${isFormValid ? 'text-white' : 'text-gray-500'}`}>
                 {existingTestimonial ? 'Update Review' : 'Submit Review'}
               </Text>
             )}
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             onPress={() => router.back()}
             className="mt-4 py-3 items-center"
