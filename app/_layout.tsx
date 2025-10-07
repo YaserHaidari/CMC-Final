@@ -49,6 +49,7 @@ function RootLayout() {
           "register",
           "settings",
           "PinLoginSettingsScreen",
+          "writeTestimonial",
         ];
         if (typeof screen === "string" && allowedScreens.includes(screen)) {
           router.push(
@@ -65,6 +66,7 @@ function RootLayout() {
               | `/register`
               | `/settings`
               | `/PinLoginSettingsScreen`
+              | `/writeTestimonial`
           );
         }
       }
