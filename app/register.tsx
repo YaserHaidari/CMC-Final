@@ -18,7 +18,6 @@ import SegmentedControl from "@react-native-segmented-control/segmented-control"
 import Constants from "expo-constants";
 import AWS from "aws-sdk";
 import { supabase } from "@/lib/supabase/initiliaze";
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
