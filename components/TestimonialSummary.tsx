@@ -9,7 +9,7 @@ import {
 } from '../lib/testimonialService';
 
 interface TestimonialsSummaryProps {
-  mentorId: number;
+  mentorId: string;
   showWriteButton?: boolean;
   compact?: boolean;
 }
@@ -51,7 +51,7 @@ const StarRating = ({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'lg
 };
 
 export const TestimonialsSummary: React.FC<TestimonialsSummaryProps> = ({
-  mentorId,
+  mentorId, 
   showWriteButton = false,
   compact = false
 }) => {
@@ -62,9 +62,11 @@ export const TestimonialsSummary: React.FC<TestimonialsSummaryProps> = ({
   const [canWrite, setCanWrite] = useState(false);
 
   useEffect(() => {
-    loadTestimonialData();
-    if (showWriteButton) {
-      checkCanWriteTestimonial();
+    if (mentorId) {
+      loadTestimonialData();
+      if (showWriteButton) {
+        checkCanWriteTestimonial();
+      }
     }
   }, [mentorId]);
 
@@ -99,7 +101,7 @@ export const TestimonialsSummary: React.FC<TestimonialsSummaryProps> = ({
   const handleWriteTestimonial = () => {
     router.push({
       pathname: '/writeTestimonial',
-      params: { mentorId: mentorId.toString() }
+      params: { mentorId }
     });
   };
 
@@ -174,31 +176,11 @@ export const TestimonialsSummary: React.FC<TestimonialsSummaryProps> = ({
 
       {/* Rating Distribution */}
       <View className="mb-6">
-        <RatingBar
-          rating={5}
-          count={stats.rating_5}
-          total={stats.total_reviews}
-        />
-        <RatingBar
-          rating={4}
-          count={stats.rating_4}
-          total={stats.total_reviews}
-        />
-        <RatingBar
-          rating={3}
-          count={stats.rating_3}
-          total={stats.total_reviews}
-        />
-        <RatingBar
-          rating={2}
-          count={stats.rating_2}
-          total={stats.total_reviews}
-        />
-        <RatingBar
-          rating={1}
-          count={stats.rating_1}
-          total={stats.total_reviews}
-        />
+        <RatingBar rating={5} count={stats.rating_5} total={stats.total_reviews} />
+        <RatingBar rating={4} count={stats.rating_4} total={stats.total_reviews} />
+        <RatingBar rating={3} count={stats.rating_3} total={stats.total_reviews} />
+        <RatingBar rating={2} count={stats.rating_2} total={stats.total_reviews} />
+        <RatingBar rating={1} count={stats.rating_1} total={stats.total_reviews} />
       </View>
 
       {/* Recent Testimonials */}

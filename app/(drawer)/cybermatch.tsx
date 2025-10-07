@@ -1,22 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
-
-// Add these debugging utilities at the top
-const DEBUG = false; // Set to false in production
-
-const debugLog = (message: string, data?: any) => {
-  if (DEBUG) {
-    console.log(`[CyberMatch Debug] ${message}`, data || '');
-    // Also try these alternative logging methods:
-    console.info(`[CyberMatch Info] ${message}`, data || '');
-    console.warn(`[CyberMatch Warn] ${message}`, data || '');
-  }
-};
-
-// Test console logging immediately
-console.log('🚀 CyberMatchScreen component file loaded');
-debugLog('Debug logging is working');
+import { router } from "expo-router";
 
 interface Mentee {
   menteeid: number;
@@ -64,8 +49,6 @@ interface MentorMatch {
 
 
 function CyberMatchScreen() {
-  debugLog('🏗️ CyberMatchScreen component initializing');
-
   const [matching, setMatching] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentMentee, setCurrentMentee] = useState<Mentee | null>(null);
@@ -78,17 +61,13 @@ function CyberMatchScreen() {
 
   // Get current user and verify they are a mentee
   const getCurrentUser = async () => {
-    debugLog('👤 Getting current user...');
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError || !user) {
-        debugLog('❌ Not authenticated:', authError);
         setError('Please log in to access mentor matching');
         return null;
       }
-
-      debugLog('✅ Authenticated user:', user.id);
       
       // Get user data from users table
       const { data: userData, error: userError } = await supabase
@@ -98,7 +77,6 @@ function CyberMatchScreen() {
         .single();
 
       if (userError || !userData) {
-        debugLog('❌ User not found in users table:', userError);
         setError('User profile not found');
         return null;
       }
@@ -113,7 +91,6 @@ function CyberMatchScreen() {
       
       return userData;
     } catch (error) {
-      debugLog('❌ Error getting current user:', error);
       setError('Authentication error');
       return null;
     }
@@ -121,8 +98,6 @@ function CyberMatchScreen() {
 
   // Get the current user's mentee profile
   const getCurrentMenteeProfile = async (userData: any) => {
-    debugLog('📋 Getting current user mentee profile...');
-    
     try {
       console.log('Looking for mentee with auth_user_id:', userData.auth_user_id);
       
@@ -147,7 +122,6 @@ function CyberMatchScreen() {
       console.log('Mentee lookup result:', { menteeData, menteeError });
 
       if (menteeError || !menteeData) {
-        debugLog('⚠️ Mentee profile not found, creating basic profile:', menteeError);
         // Create a basic mentee profile or allow matching without it
         const basicMentee = {
           menteeid: 0,
@@ -172,11 +146,9 @@ function CyberMatchScreen() {
       };
 
       setCurrentMentee(enrichedMentee);
-      debugLog('✅ Current mentee profile loaded:', enrichedMentee);
       
       return enrichedMentee;
     } catch (error) {
-      debugLog('❌ Error loading mentee profile:', error);
       setError('Failed to load mentee profile');
       return null;
     }
@@ -184,7 +156,6 @@ function CyberMatchScreen() {
 
   // Test Supabase connection
   const testSupabaseConnection = async () => {
-    debugLog('🔗 Testing Supabase connection...');
     try {
       const { data, error } = await supabase
         .from('mentees')
@@ -192,23 +163,18 @@ function CyberMatchScreen() {
         .limit(1);
       
       if (error) {
-        debugLog('❌ Supabase connection error:', error);
         setError(`Supabase Error: ${error.message}`);
         return false;
       }
-      
-      debugLog('✅ Supabase connection successful:', data);
+
       return true;
     } catch (err) {
-      debugLog('❌ Supabase connection failed:', err);
       setError(`Connection Error: ${err}`);
       return false;
     }
   };
 
   const loadCurrentUserProfile = async () => {
-    debugLog('📋 Loading current user profile...');
-    
     try {
       setLoading(true);
       setError(null);
@@ -225,9 +191,7 @@ function CyberMatchScreen() {
         return;
       }
 
-      debugLog('✅ Current user mentee profile loaded successfully');
     } catch (error) {
-      debugLog('❌ Error loading user profile:', error);
       setError(`Failed to load user profile: ${error}`);
     } finally {
       setLoading(false);
@@ -238,16 +202,13 @@ function CyberMatchScreen() {
 
   const getMentorMatches = async (): Promise<MentorMatch[]> => {
     console.log('🎯 Getting mentor matches...');
-    debugLog('🎯 Getting mentor matches...');
     
     if (!currentMentee) {
       console.log('❌ No current mentee available');
-      debugLog('❌ No current mentee available');
       return [];
     }
 
     console.log('👤 Current mentee for matching:', currentMentee.user_id, currentMentee.name);
-    debugLog('Current mentee for matching:', currentMentee);
     
     // Quick database check
     try {
@@ -299,13 +260,9 @@ function CyberMatchScreen() {
         if (mentorsError) {
           throw mentorsError;
         }
-
-        debugLog('📋 Retrieved mentors:', mentorsData);
         
         if (!mentorsData || mentorsData.length === 0) {
           console.log('⚠️ No active mentors found in database');
-          debugLog('Query result - mentorsData:', mentorsData);
-          debugLog('Query result - mentorsError:', mentorsError);
           return [];
         }
         
@@ -324,7 +281,7 @@ function CyberMatchScreen() {
             
             mentorUserData = userData || {};
           } catch (userError) {
-            debugLog(`Error fetching user data for mentor ${mentor.mentorid}:`, userError);
+            console.log(`⚠️ Error fetching user data for mentor ${mentor.mentorid}:`, userError);
           }
 
           try {
@@ -332,8 +289,6 @@ function CyberMatchScreen() {
               mentee_userid: currentMentee.user_id,
               mentor_userid: mentor.user_id
             });
-            
-            debugLog(`Match details for mentor ${mentor.mentorid}:`, matchDetails);
 
             if (matchError || !matchDetails || matchDetails.length === 0) {
               // If RPC fails for this mentor, calculate basic match
@@ -426,7 +381,7 @@ function CyberMatchScreen() {
                 };
               }
             } catch (testimonialError) {
-              debugLog(`Error fetching testimonials for mentor ${mentor.mentorid}:`, testimonialError);
+              console.log(`⚠️ Error fetching testimonials for mentor ${mentor.mentorid}:`, testimonialError);
             }
 
             return {
@@ -451,7 +406,7 @@ function CyberMatchScreen() {
               testimonial_stats: testimonialStats
             };
           } catch (error) {
-            debugLog(`Error getting match details for mentor ${mentor.mentorid}:`, error);
+            console.log(`⚠️ Error processing match for mentor ${mentor.mentorid}:`, error);
             return null;
           }
         }));
@@ -461,11 +416,7 @@ function CyberMatchScreen() {
           .filter(match => match !== null)
           .sort((a, b) => b.compatibility_score - a.compatibility_score);
 
-        debugLog('✅ RPC get_match_details processing completed for matches:', matches);
-
       } catch (rpcError) {
-        debugLog('⚠️ RPC function not available, using complete fallback matching:', rpcError);
-        
         // Complete fallback: Get all mentors and calculate basic matches
         const { data: mentorsData, error: mentorsError } = await supabase
           .from('mentors')
@@ -492,13 +443,9 @@ function CyberMatchScreen() {
         if (mentorsError) {
           throw mentorsError;
         }
-
-        debugLog('📋 Retrieved mentors for fallback matching:', mentorsData);
         
         if (!mentorsData || mentorsData.length === 0) {
           console.log('⚠️ Fallback: No active mentors found in database');
-          debugLog('Fallback query result - mentorsData:', mentorsData);
-          debugLog('Fallback query result - mentorsError:', mentorsError);
           return [];
         }
         
@@ -517,7 +464,7 @@ function CyberMatchScreen() {
             
             mentorUserData = userData || {};
           } catch (userError) {
-            debugLog(`Error fetching user data for mentor ${mentor.mentorid}:`, userError);
+            console.log(`⚠️ Error fetching user data for mentor ${mentor.mentorid}:`, userError);
           }
 
           const menteeSkills = currentMentee.skills || [];
@@ -567,18 +514,12 @@ function CyberMatchScreen() {
         }));
         
         matches.sort((a, b) => b.compatibility_score - a.compatibility_score);
-
-        debugLog('✅ Complete fallback matching completed:', matches);
       }
 
-      debugLog('✅ Final processed matches:', matches);
       return matches;
     } catch (error: any) {
       const errorMessage = error?.message || JSON.stringify(error);
-      debugLog('❌ Error getting matches:', errorMessage);
       setError(`Failed to find mentor matches: ${errorMessage}`);
-      // Don't show alert for fallback, just log the error
-      debugLog('Using empty matches due to error');
       return [];
     } finally {
       setLoading(false);
@@ -623,7 +564,6 @@ function CyberMatchScreen() {
 
   const startMatching = async () => {
     console.log('🚀 Starting matching process...');
-    debugLog('🚀 Starting matching process...');
     
     if (!currentMentee) {
       console.log('⚠️ No mentee profile, but proceeding with basic matching');
@@ -706,7 +646,6 @@ function CyberMatchScreen() {
   const proceedWithMatching = async () => {
     const matches = await getMentorMatches();
     console.log('📊 Matches received:', matches?.length || 0, 'matches');
-    debugLog('Matches received:', matches);
     
     if (matches.length > 0) {
       setMentorMatches(matches);
@@ -714,25 +653,20 @@ function CyberMatchScreen() {
       setCurrentMatch(matches[0]);
       setMatching(true);
       console.log('✅ Matching started successfully with', matches.length, 'matches');
-      debugLog('✅ Matching started successfully');
     } else {
       console.log('❌ No matches found - check database for active mentors');
-      debugLog('❌ No matches found');
       // Show a more user-friendly message without an intrusive alert
       setError('No mentors found. Please ensure there are active mentors in the database.');
     }
   };
 
   const handleNext = () => {
-    debugLog('⏭️ Moving to next match...');
     
     if (currentMatchIndex + 1 < mentorMatches.length) {
       const nextIndex = currentMatchIndex + 1;
       setCurrentMatchIndex(nextIndex);
       setCurrentMatch(mentorMatches[nextIndex]);
-      debugLog(`Moved to match ${nextIndex + 1} of ${mentorMatches.length}`);
     } else {
-      debugLog('📝 Reached end of matches');
       Alert.alert("End", "No more mentors to show.");
       setMatching(false);
       setCurrentMatch(null);
@@ -741,8 +675,6 @@ function CyberMatchScreen() {
   };
 
   const handleRequestMentorship = async (mentorUserId: string) => {
-    debugLog('📧 Requesting mentorship for mentor:', mentorUserId);
-    
     // Verify user is authenticated
     if (!isAuthenticated || !currentUser) {
       Alert.alert('Error', 'Please log in to send mentorship requests');
@@ -780,8 +712,6 @@ function CyberMatchScreen() {
           message: 'Hi, I would like to request mentorship based on our compatibility match.'
         });
       
-      debugLog('Mentorship request result:', { error });
-      
       if (error) {
         console.error('Mentorship request error:', error);
         Alert.alert('Error', `Failed to send mentorship request: ${error.message}`);
@@ -811,40 +741,8 @@ function CyberMatchScreen() {
     if (score >= 60) return "#D97706"; 
     return "#DC2626";
   };
-  
-  // Component lifecycle logging
-  useEffect(() => {
-    debugLog('🎬 Component mounted, loading user profile...');
-    loadCurrentUserProfile();
-    
-    return () => {
-      debugLog('🔚 Component unmounting...');
-    };
-  }, []);
-
-  useEffect(() => {
-    debugLog('🔄 State updated:', {
-      matching,
-      loading,
-      isAuthenticated,
-      currentUser: currentUser?.user_type,
-      currentMentee: currentMentee?.user_id,
-      mentorMatchesCount: mentorMatches.length,
-      currentMatchIndex,
-      error
-    });
-  }, [matching, loading, isAuthenticated, currentUser, currentMentee, mentorMatches, currentMatchIndex, error]);
-
-  // Debug render conditions
-  debugLog('🎨 Rendering component with states:', {
-    loading,
-    currentMentee: !!currentMentee,
-    matching,
-    error
-  });
 
   if (loading) {
-    debugLog('⏳ Rendering loading state');
     return (
       <View style={{ flex: 1, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#2563eb" />
@@ -857,7 +755,6 @@ function CyberMatchScreen() {
   }
 
   if (!currentMentee) {
-    debugLog('👤 Rendering no mentee state');
     return (
       <View style={{ flex: 1, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
         <Text style={{ fontSize: 20, color: '#6B7280', textAlign: 'center', marginBottom: 16 }}>
@@ -871,7 +768,6 @@ function CyberMatchScreen() {
         <TouchableOpacity 
           style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 9999 }}
           onPress={() => {
-            debugLog('🔄 Retry loading user profile');
             loadCurrentUserProfile();
           }}
         >
@@ -881,7 +777,6 @@ function CyberMatchScreen() {
     );
   }
 
-  debugLog('🎯 Rendering main interface');
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#F9FAFB' }} contentContainerStyle={{ paddingVertical: 20 }}>
       <View style={{ paddingHorizontal: 16 }}>
@@ -890,19 +785,6 @@ function CyberMatchScreen() {
             <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1D4ED8', marginBottom: 8, textAlign: 'center' }}>
               Find Your Cybersecurity Mentor
             </Text>
-            
-            {/* Debug info panel */}
-            {DEBUG && (
-              <View style={{ width: '100%', backgroundColor: '#F3F4F6', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-                <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 4 }}>Debug Info:</Text>
-                <Text style={{ fontSize: 10 }}>Current User: {currentUser?.user_type}</Text>
-                <Text style={{ fontSize: 10 }}>Current Mentee: {currentMentee?.user_id}</Text>
-                <Text style={{ fontSize: 10 }}>Authenticated: {isAuthenticated.toString()}</Text>
-                {error && <Text style={{ fontSize: 10, color: '#DC2626' }}>Error: {error}</Text>}
-              </View>
-            )}
-            
-
             
             <View style={{ width: '100%', backgroundColor: 'white', borderRadius: 16, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, marginBottom: 24 }}>
               <View style={{ alignItems: 'center', marginBottom: 16 }}>
@@ -1257,47 +1139,73 @@ function CyberMatchScreen() {
 
             {/* Action Buttons */}
             <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity
-                style={{ 
-                    flex: 1, 
-                    backgroundColor: currentMatchIndex + 1 >= mentorMatches.length ? '#EF4444' : '#F3F4F6', 
-                    paddingVertical: 16, 
-                    borderRadius: 12, 
-                    alignItems: 'center',
-                    borderWidth: 1,
-                    borderColor: currentMatchIndex + 1 >= mentorMatches.length ? '#DC2626' : '#D1D5DB'
-                }}
-                onPress={handleNext}
-                >
-                <Text style={{ 
-                    color: currentMatchIndex + 1 >= mentorMatches.length ? 'white' : '#374151', 
-                    fontWeight: '600', 
-                    fontSize: 16 ,
-                    textAlign: 'center'
-                }}>
-                    {currentMatchIndex + 1 >= mentorMatches.length ? 'Finish' : 'Next'}
-                </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                style={{ 
-                    flex: 1, 
-                    backgroundColor: '#2563EB', 
-                    paddingVertical: 16, 
-                    borderRadius: 12, 
-                    alignItems: 'center',
-                    shadowColor: '#2563EB',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4,
-                    elevation: 4
-                }}
-                onPress={() => handleRequestMentorship(currentMatch.user_id)}
-                >
-                <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, textAlign: 'center' }}>
-                    Request Mentorship
-                </Text>
-                </TouchableOpacity>
+            {/* Next / Finish Button */}
+            <TouchableOpacity
+              style={{ 
+                flex: 1, 
+                backgroundColor: currentMatchIndex + 1 >= mentorMatches.length ? '#EF4444' : '#F3F4F6', 
+                paddingVertical: 16, 
+                borderRadius: 12, 
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: currentMatchIndex + 1 >= mentorMatches.length ? '#DC2626' : '#D1D5DB'
+              }}
+              onPress={handleNext}
+            >
+              <Text style={{ 
+                color: currentMatchIndex + 1 >= mentorMatches.length ? 'white' : '#374151', 
+                fontWeight: '600', 
+                fontSize: 16,
+                textAlign: 'center'
+              }}>
+                {currentMatchIndex + 1 >= mentorMatches.length ? 'Finish' : 'Next'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Request Mentorship */}
+            <TouchableOpacity
+              style={{ 
+                flex: 1, 
+                backgroundColor: '#2563EB', 
+                paddingVertical: 16, 
+                borderRadius: 12, 
+                alignItems: 'center',
+                shadowColor: '#2563EB',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 4
+              }}
+              onPress={() => handleRequestMentorship(currentMatch.user_id)}
+            >
+              <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, textAlign: 'center' }}>
+                Request Mentorship
+              </Text>
+            </TouchableOpacity>
+
+            {/* View Testimonials */}
+            <TouchableOpacity
+              style={{ 
+                flex: 1, 
+                backgroundColor: '#F59E0B', 
+                paddingVertical: 16, 
+                borderRadius: 12, 
+                alignItems: 'center'
+              }}
+              onPress={() =>
+                router.push({
+                  pathname: '/testimonials',
+                  params: { 
+                    mentorId: currentMatch.user_id,   // UUID
+                    mentorName: currentMatch.mentor_name 
+                  }
+                })
+              }
+            >
+              <Text style={{ color: 'white', fontWeight: '600', fontSize: 16, textAlign: 'center' }}>
+                View Testimonials
+              </Text>
+            </TouchableOpacity>
             </View>
             </View>
         </View>

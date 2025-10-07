@@ -17,7 +17,6 @@ import {
 
 const RatingBar = ({ rating, count, total }: { rating: number; count: number; total: number }) => {
   const percentage = total > 0 ? (count / total) * 100 : 0;
-  
   return (
     <View className="flex-row items-center space-x-3 mb-2">
       <Text className="text-sm text-gray-600 w-6">{rating}</Text>
@@ -32,26 +31,24 @@ const RatingBar = ({ rating, count, total }: { rating: number; count: number; to
   );
 };
 
-const StarRating = ({ rating }: { rating: number }) => {
-  return (
-    <View className="flex-row items-center space-x-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Text
-          key={star}
-          className={`text-2xl ${
-            star <= Math.floor(rating) ? 'text-yellow-500' : 'text-gray-300'
-          }`}
-        >
-          ★
-        </Text>
-      ))}
-    </View>
-  );
-};
+const StarRating = ({ rating }: { rating: number }) => (
+  <View className="flex-row items-center space-x-1">
+    {[1, 2, 3, 4, 5].map((star) => (
+      <Text
+        key={star}
+        className={`text-2xl ${
+          star <= Math.floor(rating) ? 'text-yellow-500' : 'text-gray-300'
+        }`}
+      >
+        ★
+      </Text>
+    ))}
+  </View>
+);
 
 export default function TestimonialsScreen() {
   const { mentorId, mentorName } = useLocalSearchParams<{
-    mentorId: string;
+    mentorId: string;   // this is the UUID now
     mentorName?: string;
   }>();
   
@@ -84,24 +81,18 @@ export default function TestimonialsScreen() {
   const loadTestimonialData = async (reset = false) => {
     try {
       const offset = reset ? 0 : testimonials.length;
-      
+
       const [statsData, testimonialsData] = await Promise.all([
-        testimonialService.getMentorStats(parseInt(mentorId!)),
+        testimonialService.getMentorStats(mentorId), // ✅ no parseInt
         testimonialService.getMentorTestimonials(
-          parseInt(mentorId!),
+          mentorId,
           ITEMS_PER_PAGE,
           offset
         )
       ]);
 
       setStats(statsData);
-      
-      if (reset) {
-        setTestimonials(testimonialsData);
-      } else {
-        setTestimonials(prev => [...prev, ...testimonialsData]);
-      }
-      
+      setTestimonials(reset ? testimonialsData : [...testimonials, ...testimonialsData]);
       setHasMore(testimonialsData.length === ITEMS_PER_PAGE);
     } catch (error) {
       console.error('Error loading testimonial data:', error);
@@ -114,7 +105,7 @@ export default function TestimonialsScreen() {
       const menteeId = await testimonialService.getCurrentMenteeId();
       if (menteeId) {
         const canWriteReview = await testimonialService.canWriteTestimonial(
-          parseInt(mentorId!),
+          mentorId,  // ✅ UUID not int
           menteeId
         );
         setCanWrite(canWriteReview);
@@ -131,7 +122,6 @@ export default function TestimonialsScreen() {
 
   const handleLoadMore = async () => {
     if (loadingMore || !hasMore) return;
-    
     setLoadingMore(true);
     await loadTestimonialData(false);
     setLoadingMore(false);
@@ -140,7 +130,7 @@ export default function TestimonialsScreen() {
   const handleWriteTestimonial = () => {
     router.push({
       pathname: '/writeTestimonial',
-      params: { mentorId: mentorId! }
+      params: { mentorId } // ✅ keep UUID
     });
   };
 
@@ -171,7 +161,6 @@ export default function TestimonialsScreen() {
               {mentorName ? `${mentorName} hasn't` : "This mentor hasn't"} received any reviews yet. 
               Be the first to share your experience!
             </Text>
-            
             {canWrite && (
               <TouchableOpacity
                 onPress={handleWriteTestimonial}
@@ -215,7 +204,6 @@ export default function TestimonialsScreen() {
                 </View>
               </View>
             </View>
-            
             {canWrite && (
               <TouchableOpacity
                 onPress={handleWriteTestimonial}
@@ -244,13 +232,12 @@ export default function TestimonialsScreen() {
           <Text className="text-lg font-semibold text-gray-900 mb-4 px-1">
             All Reviews ({stats.total_reviews})
           </Text>
-          
           {testimonials.map((testimonial) => (
             <TestimonialCard key={testimonial.id} testimonial={testimonial} />
           ))}
         </View>
 
-        {/* Load More Button */}
+        {/* Load More */}
         {hasMore && (
           <TouchableOpacity
             onPress={handleLoadMore}
@@ -260,22 +247,16 @@ export default function TestimonialsScreen() {
             {loadingMore ? (
               <View className="flex-row items-center">
                 <ActivityIndicator size="small" color="#6B7280" />
-                <Text className="text-gray-600 font-medium ml-2">
-                  Loading more...
-                </Text>
+                <Text className="text-gray-600 font-medium ml-2">Loading more...</Text>
               </View>
             ) : (
               <Text className="text-gray-700 font-medium">Load More Reviews</Text>
             )}
           </TouchableOpacity>
         )}
-
-        {/* End Message */}
         {!hasMore && testimonials.length > 0 && (
           <View className="items-center py-4">
-            <Text className="text-gray-500 text-sm">
-              You've seen all reviews
-            </Text>
+            <Text className="text-gray-500 text-sm">You've seen all reviews</Text>
           </View>
         )}
       </View>

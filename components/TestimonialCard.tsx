@@ -46,7 +46,7 @@ export const TestimonialCard: React.FC<TestimonialCardProps> = ({ testimonial })
           ) : (
             <View className="w-10 h-10 rounded-full bg-gray-300 mr-3 items-center justify-center">
               <Text className="text-gray-600 font-semibold text-sm">
-                {testimonial.mentee_name.charAt(0).toUpperCase()}
+                {testimonial.mentee_name.charAt(0).toUpperCase() || "?"}
               </Text>
             </View>
           )}

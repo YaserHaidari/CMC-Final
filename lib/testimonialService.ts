@@ -1,13 +1,13 @@
 import { supabase } from "./supabase/initiliaze";
 
 export interface Testimonial {
-  id: string;
+  id: string; // or number if your table uses serial, but Supabase returns as string
   testimonial_text: string;
   rating: number;
-  created_at: string;
+  created_at: string; // ISO timestamp
   is_featured: boolean;
-  mentee_name: string;
-  mentee_avatar_url?: string;
+  mentee_name: string;              // from users.name
+  mentee_avatar_url?: string | null; // from users."photoURL"
 }
 
 export interface TestimonialStats {
@@ -28,22 +28,16 @@ export interface CreateTestimonialData {
 }
 
 class TestimonialService {
-  // --- Helper to convert mentor UUID to mentorid PK ---
+  // --- Helper to resolve mentorid (int) from UUID ---
   private async getMentorIdFromUserId(mentorUserId: string): Promise<number> {
-    try {
-      const { data, error } = await supabase
-        .from("mentors")
-        .select("mentorid")
-        .eq("user_id", mentorUserId)
-        .single();
+    const { data, error } = await supabase
+      .from("mentors")
+      .select("mentorid")
+      .eq("user_id", mentorUserId)
+      .single();
 
-      if (error) throw error;
-      if (!data) throw new Error("Mentor not found");
-      return data.mentorid;
-    } catch (err) {
-      console.error("Error resolving mentorid from user_id:", err);
-      throw err;
-    }
+    if (error || !data) throw new Error("Mentor not found");
+    return data.mentorid;
   }
 
   async createTestimonial(testimonialData: CreateTestimonialData): Promise<boolean> {
@@ -158,6 +152,63 @@ class TestimonialService {
       console.error("Error fetching user name:", err);
       return null;
     }
+  }
+
+  // --- Fetch aggregated stats ---
+  async getMentorStats(mentorUserId: string): Promise<TestimonialStats | null> {
+    try {
+      const mentorId = await this.getMentorIdFromUserId(mentorUserId);
+
+      const { data, error } = await supabase.rpc(
+        "get_mentor_testimonial_stats",
+        { mentor_id_param: mentorId }
+      );
+
+      if (error) throw error;
+      if (!data || data.length === 0) return null;
+
+      const row = data[0];
+      return {
+        total_reviews: row.total,
+        average_rating: row.round || 0,
+        rating_1: row.r1,
+        rating_2: row.r2,
+        rating_3: row.r3,
+        rating_4: row.r4,
+        rating_5: row.r5,
+      };
+    } catch (err) {
+      console.error("Error fetching mentor testimonial stats:", err);
+      return null;
+    }
+  }
+
+  // --- Fetch testimonials with pagination ---
+  async getMentorTestimonials(
+    mentorUserId: string,
+    limit: number,
+    offset = 0
+  ): Promise<Testimonial[]> {
+    try {
+      const mentorId = await this.getMentorIdFromUserId(mentorUserId);
+
+      const { data, error } = await supabase.rpc("get_mentor_testimonials", {
+        mentor_id_param: mentorId,
+        limit_param: limit,
+        offset_param: offset,
+      });
+
+      if (error) throw error;
+      return (data || []) as Testimonial[];
+    } catch (err) {
+      console.error("Error fetching mentor testimonials:", err);
+      return [];
+    }
+  }
+
+  async canWriteTestimonial(mentorUserId: string, menteeId: number): Promise<boolean> {
+    const existing = await this.getExistingTestimonial(mentorUserId, menteeId);
+    return !existing; // true if no testimonial exists
   }
 }
 
