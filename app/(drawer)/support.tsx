@@ -18,31 +18,23 @@ export default function Support() {
   const faqs = [
     {
       q: "How do I reset my password?",
-      a: "Go to Settings → Account → Reset Password. If you don't receive an email, check spam or contact support.",
+      a: "At the momment the only way to be able to reset your password is by email our team directly so we can send you a link.",
     },
     {
-      q: "How do I become a mentor?",
-      a: "Complete your profile and apply from the Mentor section. Our team will review and notify you by email.",
-    },
-    {
-      q: "Where can I view billing details?",
-      a: "Billing details are available in Settings → Billing. For invoices, contact yhaidari99@gmail.com.",
+      q: "What is verified mentors?",
+      a: "Verified mentors are users who's ID & skillset have been verified by our team.",
     },
     {
       q: "How do I change my account email?",
-      a: "Go to Settings → Account → Email and follow the verification steps. Updating the email will require re-verification.",
+      a: "Go to Profile → Edit Profile & Change your email address and press Update.",
     },
     {
       q: "How do I delete my account?",
-      a: "To delete your account, go to Settings → Account → Delete Account. This action is irreversible; contact support if unsure.",
+      a: "To delete your account, please email us.",
     },
     {
       q: "How do I report abuse or a policy violation?",
-      a: "Use the 'Report' link on the offending profile or message, or contact support with the URL and a short description.",
-    },
-    {
-      q: "What payment methods are accepted?",
-      a: "We accept major credit/debit cards and selected regional payment gateways. Billing options appear in Settings → Billing.",
+      a: "Please email us about any policy violation",
     },
   ];
 
