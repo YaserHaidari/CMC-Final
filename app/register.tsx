@@ -355,7 +355,7 @@ export default function RegisterScreen() {
                     {isProcessing ? (
                       <ActivityIndicator color="white" size="small" />
                     ) : (
-                      <View className="flex-row items-center">
+                        <View className="flex-row items-center mb-4">
                         <Text className="text-lg font-bold font-Menu text-white mr-2">
                           ✓ Email Verified
                         </Text>
