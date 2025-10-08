@@ -289,6 +289,12 @@ export default function ProfileScreen() {
             >
               <Text className="text-white">Retry</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/login")}
+              className="mt-4 bg-green-500 px-4 py-2 rounded"
+            >
+              <Text className="text-white">Go to Login</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>

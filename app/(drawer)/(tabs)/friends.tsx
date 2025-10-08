@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Alert,
 } from "react-native";
@@ -15,9 +14,86 @@ type Friend = {
   name: string;
   email: string;
   user_type: string;
-  auth_id: string; // UUID from Supabase Auth
+  auth_id: string;
   status: string;
 };
+
+// Dropdown component (frontend-only behavior)
+function FriendOptions({
+  friend,
+  isOpen,
+  onToggle,
+  onBlock,
+  onTestimonial,
+  isBlocked,
+}: {
+  friend: Friend;
+  isOpen: boolean;
+  onToggle: () => void;
+  onBlock: (f: Friend) => void;
+  onTestimonial: (f: Friend) => void;
+  isBlocked: boolean;
+}) {
+  const confirmBlock = () => {
+    Alert.alert(
+      isBlocked ? "Unblock User" : "Block User",
+      `Are you sure you want to ${isBlocked ? "unblock" : "block"} ${
+        friend.name
+      }?`,
+      [
+        { text: "Cancel", style: "cancel", onPress: () => onToggle() },
+        {
+          text: isBlocked ? "Unblock" : "Block",
+          style: "destructive",
+          onPress: () => {
+            onToggle();
+            onBlock(friend);
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <View className="relative items-center">
+      {/* Options button */}
+      <TouchableOpacity
+        onPress={onToggle}
+        className="p-2"
+        accessibilityLabel={`options-${friend.auth_id}`}
+      >
+        <Text className="text-xl">⋮</Text>
+      </TouchableOpacity>
+
+      {/* Dropdown menu */}
+      {isOpen && (
+        <View
+          className="absolute right-0 top-12 w-44 bg-white rounded-lg shadow-lg z-50"
+          style={{ elevation: 10 }}
+        >
+          <TouchableOpacity
+            className="px-4 py-3 border-b border-gray-100"
+            onPress={confirmBlock}
+          >
+            <Text className="text-sm text-gray-800">
+              {isBlocked ? "Unblock User" : "Block User"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="px-4 py-3"
+            onPress={() => {
+              onToggle();
+              onTestimonial(friend); // navigate immediately
+            }}
+          >
+            <Text className="text-sm text-gray-800">Write Testimonial</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function Friends() {
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -26,7 +102,12 @@ export default function Friends() {
   const [blockedByMe, setBlockedByMe] = useState<string[]>([]);
   const [blockedMe, setBlockedMe] = useState<string[]>([]);
 
-  //  Get logged-in user's info
+  // UI: which friend's menu is open (auth_id) — frontend only
+  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
+  const toggleMenu = (authId: string) =>
+    setOpenMenuFor((prev) => (prev === authId ? null : authId));
+
+  // Fetch logged-in user
   useEffect(() => {
     async function fetchCurrentUser() {
       try {
@@ -46,7 +127,7 @@ export default function Friends() {
     fetchCurrentUser();
   }, []);
 
-  //  Fetch blocked users (mutual check: separate by direction)
+  // Fetch blocked users
   useEffect(() => {
     if (!currentAuthId) return;
 
@@ -86,7 +167,7 @@ export default function Friends() {
     fetchBlocked();
   }, [currentAuthId]);
 
-  //  Fetch users with approved mentorship requests
+  // Fetch mentorship connections
   useEffect(() => {
     async function fetchFriends() {
       if (!currentUserEmail || !currentAuthId) return;
@@ -225,7 +306,7 @@ export default function Friends() {
     fetchFriends();
   }, [currentUserEmail, currentAuthId]);
 
-  //  Handle block/unblock (only blocker can unblock)
+  // toggleBlock (unchanged logic)
   async function toggleBlock(friend: Friend) {
     if (!currentAuthId) return;
 
@@ -267,28 +348,7 @@ export default function Friends() {
     }
   }
 
-  //  Show block/unblock menu dynamically
-  function showBlockMenu(friend: Friend) {
-    const isBlockedByMe = blockedByMe.includes(friend.auth_id);
-    Alert.alert(
-      friend.name,
-      isBlockedByMe
-        ? "Do you want to unblock this user?"
-        : "Do you want to block this user?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: isBlockedByMe ? "Unblock" : "Block",
-          onPress: () => toggleBlock(friend),
-        },
-      ]
-    );
-  }
-
-  //  Handle chat tap with user-specific message
-  // ...existing code...
-
-  //  Handle chat tap with user-specific message
+  // handleChat (unchanged)
   function handleChat(friend: Friend) {
     if (blockedByMe.includes(friend.auth_id)) {
       Alert.alert(
@@ -303,7 +363,6 @@ export default function Friends() {
       return;
     }
 
-    // CHANGE THIS LINE - Use auth_id instead of id, and the correct parameter names
     router.push({
       pathname: "/chat",
       params: {
@@ -313,117 +372,65 @@ export default function Friends() {
     });
   }
 
-  // ...rest of existing code...
-
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>My Connections</Text>
+    <ScrollView className="flex-1 bg-gray-100 pt-8 px-4">
+      <Text className="text-2xl font-bold mb-5 text-gray-900 tracking-tight">
+        My Connections
+      </Text>
+
       {friends.length === 0 ? (
-        <Text style={styles.emptyText}>
+        <Text className="text-center text-gray-500 mt-10 text-base">
           No approved mentorship connections yet.
         </Text>
       ) : (
         friends.map((friend) => (
-          <View key={`${friend.user_type}_${friend.id}`} style={styles.card}>
+          <View
+            key={`${friend.user_type}_${friend.id}`}
+            className="flex-row items-center bg-white rounded-xl p-4 mb-3 shadow"
+          >
             <TouchableOpacity
-              style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
+              className="flex-1 flex-row items-center"
               onPress={() => handleChat(friend)}
             >
-              <Text style={styles.avatar}>{friend.name[0]?.toUpperCase()}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{friend.name}</Text>
-                <Text style={styles.email}>{friend.email}</Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 2,
-                  }}
-                >
-                  <Text style={styles.userType}>{friend.user_type}</Text>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>✓ {friend.status}</Text>
+              <Text className="w-11 h-11 rounded-full bg-blue-600 text-white font-bold text-lg text-center leading-[44px] mr-4">
+                {friend.name[0]?.toUpperCase()}
+              </Text>
+              <View className="flex-1">
+                <Text className="text-base font-semibold text-gray-900">
+                  {friend.name}
+                </Text>
+                <Text className="text-xs text-gray-500 mt-0.5">
+                  {friend.email}
+                </Text>
+                <View className="flex-row items-center mt-1">
+                  <Text className="text-[11px] text-gray-400 font-medium mr-2">
+                    {friend.user_type}
+                  </Text>
+                  <View className="bg-green-100 rounded-full px-2 py-0.5">
+                    <Text className="text-[10px] text-green-700 font-semibold">
+                      ✓ {friend.status}
+                    </Text>
                   </View>
                 </View>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => showBlockMenu(friend)}
-              style={{ padding: 8 }}
-            >
-              <Text style={{ fontSize: 20 }}>⋮</Text>
-            </TouchableOpacity>
+
+            <FriendOptions
+              friend={friend}
+              isOpen={openMenuFor === friend.auth_id}
+              onToggle={() => toggleMenu(friend.auth_id)}
+              onBlock={(f) => toggleBlock(f)}
+              onTestimonial={(f) =>
+                router.push({
+                  pathname: "/writeTestimonial",
+                  params: { mentorId: f.auth_id, mentorName: f.name },
+                })
+              }
+              isBlocked={blockedByMe.includes(friend.auth_id)}
+            />
           </View>
         ))
       )}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f3f4f6",
-    paddingTop: 32,
-    paddingHorizontal: 16,
-  },
-  header: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 18,
-    color: "#222",
-    letterSpacing: 0.5,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#888",
-    marginTop: 40,
-    fontSize: 16,
-  },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#2563eb",
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 20,
-    textAlign: "center",
-    textAlignVertical: "center",
-    marginRight: 16,
-    overflow: "hidden",
-    lineHeight: 44,
-  },
-  name: { fontSize: 17, fontWeight: "600", color: "#222" },
-  email: { fontSize: 13, color: "#6b7280", marginTop: 2 },
-  userType: {
-    fontSize: 11,
-    color: "#9ca3af",
-    marginTop: 1,
-    fontWeight: "500",
-    marginRight: 8,
-  },
-  statusBadge: {
-    backgroundColor: "#dcfce7",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  statusText: {
-    fontSize: 10,
-    color: "#166534",
-    fontWeight: "600",
-  },
-});
