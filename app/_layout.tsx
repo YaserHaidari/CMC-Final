@@ -41,6 +41,7 @@ function RootLayout() {
           "chat",
           "cybermatch",
           "findmentors",
+          "friends",
           "home",
           "login",
           "notifications",
@@ -49,6 +50,7 @@ function RootLayout() {
           "register",
           "settings",
           "PinLoginSettingsScreen",
+          "writeTestimonial",
           "skills",
         ];
         if (typeof screen === "string" && allowedScreens.includes(screen)) {
@@ -66,7 +68,9 @@ function RootLayout() {
               | `/register`
               | `/settings`
               | `/PinLoginSettingsScreen`
+              | `/writeTestimonial`
               | `/skills`
+              | `/friends`
           );
         }
       }
@@ -93,6 +97,7 @@ function RootLayout() {
           <Stack.Screen name="register" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="pin" options={{ headerShown: false }} />
+           <Stack.Screen name="friends" options={{ headerShown: false, }} />
           <Stack.Screen
             name="updateProfile"
             options={{ title: "Update Profile" }}

@@ -1,4 +1,4 @@
-import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Image, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase/initiliaze";
@@ -386,6 +386,13 @@ export default function UpdateProfile() {
         }
     };
 
+    // Handle delete
+    const deleteUser = async (email: string) => {
+        const { error } = await supabase.from("users").delete().eq("email", email);
+        if (!error) {
+            router.push("/login");
+        }
+    };
 
     // Handle cancel
     const handleCancel = () => {
@@ -510,7 +517,7 @@ export default function UpdateProfile() {
                         {/* Mentee-specific button */}
             {user?.user_type?.toLowerCase() === "mentee" && (
               <TouchableOpacity
-                onPress={() => router.dismissTo('/skills')}
+                onPress={() => router.dismissTo("/skills")}
                 style={{
                   backgroundColor: "#f3f4f6",
                   paddingVertical: 14,
@@ -675,7 +682,7 @@ export default function UpdateProfile() {
                 )}
 
                 {/* --- PIN Section --- */}
-                <View style={{ alignItems: 'center', marginTop: 8 }}>
+                <View style={{ alignItems: 'center', marginTop: 8, marginBottom: '5%' }}>
                     <TouchableOpacity
                         onPress={() => handlePress("Security Settings")}
                         style={{
@@ -683,7 +690,6 @@ export default function UpdateProfile() {
                             alignItems: 'center',
                             marginTop: 8,
                             padding: 16,
-                            marginBottom: '5%',
                             backgroundColor: '#f9fafb',
                             borderWidth: 1,
                             borderColor: '#d1d5db',
