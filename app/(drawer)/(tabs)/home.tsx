@@ -203,6 +203,7 @@ function HomeScreen() {
 };
 
   return (
+    
     <View className="flex-1 bg-stone-50">
       {/* Top-right blob */}
       <View
@@ -210,7 +211,7 @@ function HomeScreen() {
           position: 'absolute',
           width: 350,
           height: 280,
-          backgroundColor: '#F8DD2E',
+          backgroundColor: '#e5c97bff',
           borderTopLeftRadius: 150,
           borderTopRightRadius: 50,
           borderBottomLeftRadius: 50,
@@ -229,7 +230,7 @@ function HomeScreen() {
           position: 'absolute',
           width: 320,
           height: 260,
-          backgroundColor: '#4FCBE9', // deep sky blue
+          backgroundColor: '#40301eff', // deep sky blue
           borderTopLeftRadius: 100,
           borderTopRightRadius: 150,
           borderBottomLeftRadius: 150,
@@ -276,21 +277,7 @@ function HomeScreen() {
             onPress={() => mentorProfile(mentor.mentorid)}
             className="bg-[#e1e2d5ff] rounded-xl mb-4 mx-7 border p-3 overflow-hidden"
           >
-            <Image
-              source={require('@/assets/images/07-02-02-02.webp')}
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: '120%',
-                top: 0,
-                left: 10,
-                right: 4,
-                bottom: 0,
-                opacity: 0.1,
-                resizeMode: 'contain',
-              }}
-
-            />
+           
             <View className="flex-row">
               {mentor.user?.photoURL ? (
                 <Image

@@ -102,20 +102,20 @@ export default function PinLoginScreen() {
     <View style={styles.container}>
       <Svg style={styles.topShape} viewBox="0 0 1430 320">
         <Path
-          fill="#9ADAD9"
+          fill="#c5b383ff"
           d="M0,64L80,106.7C160,149,320,235,480,229.3C640,224,800,128,960,122.7C1120,117,1280,203,1360,245.3L1440,288L1440,0L1360,0C1280,0,1120,0,960,0C800,0,640,0,480,0C320,0,160,0,80,0L0,0Z"
         />
       </Svg>
       <Svg style={styles.sideShape} viewBox="0 0 1430 320">
         <Path
-          fill="#46aeadff"
+          fill="#dccb9cff"
           d="M0,64L80,106.7C160,149,320,235,480,229.3C640,224,800,128,960,122.7C1120,117,1280,203,1360,245.3L1440,288L1440,0L1360,0C1280,0,1120,0,960,0C800,0,640,0,480,0C320,0,160,0,80,0L0,0Z"
         />
       </Svg>
       <Text style={styles.title}>Enter PIN</Text>
       {renderDots()}
       <View style={styles.keypad}>{renderKeypad()}</View>
-      <TouchableOpacity style={[styles.loginButton, { backgroundColor: "#5c6c6dff" }]} onPress={handleLogin}>
+      <TouchableOpacity style={[styles.loginButton, { backgroundColor: "#1724abff" }]} onPress={handleLogin}>
         <Text style={styles.loginText}>Login</Text>
       </TouchableOpacity>
 
@@ -129,7 +129,7 @@ export default function PinLoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f5f5f5" },
+  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FAF3E0" },
   topShape: { position: "absolute", top: -30, left: 0, right: -650, height: 250 },
   sideShape: { position: "absolute", top: -30, left: -300, right: -300, height: 250 },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 40, top: 85 },
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   filledDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#333" },
   keypad: { marginTop: 20, top: 45 },
   keypadRow: { flexDirection: "row", justifyContent: "center" },
-  key: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#c1dadaff", justifyContent: "center", alignItems: "center", margin: 10 },
+  key: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#e2dac6ff", justifyContent: "center", alignItems: "center", margin: 10 },
   keyText: { fontSize: 24, fontWeight: "bold" },
   loginButton: { marginTop: 30, backgroundColor: "#007bff", paddingHorizontal: 40, paddingVertical: 12, borderRadius: 8, top: 30 },
   loginText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
