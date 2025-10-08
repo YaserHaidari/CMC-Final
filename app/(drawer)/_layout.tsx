@@ -103,6 +103,15 @@ export default function DrawerLayout() {
                             : { borderRadius: 12, marginVertical: 4 },
                     }}
                 />
+                 <Drawer.Screen 
+                    name="support" 
+                    options={{
+                        drawerLabel: "Support",
+                        drawerIcon: ({ color, size }) => (
+                            <Feather name="help-circle" size={24} color={color} />
+                        ),
+                    }}
+                />
             </Drawer>
     );
 }

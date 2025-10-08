@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, Image, ScrollView, Button, Alert, StyleSheet } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface UserInfo {
   name: string;
@@ -364,6 +365,7 @@ function NotificationsScreen() {
   }
 
   return (
+
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -489,6 +491,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+    marginTop: '5%'
   },
   header: {
     paddingHorizontal: 20,

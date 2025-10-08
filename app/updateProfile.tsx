@@ -386,13 +386,6 @@ export default function UpdateProfile() {
         }
     };
 
-    // Handle delete
-    const deleteUser = async (email: string) => {
-        const { error } = await supabase.from("users").delete().eq("email", email);
-        if (!error) {
-            router.push("/login");
-        }
-    };
 
     // Handle cancel
     const handleCancel = () => {
@@ -475,7 +468,7 @@ export default function UpdateProfile() {
                             onChangeText={text => setNewDetail(prev => ({ ...prev, DOB: text }))}
                             style={styles.input}
                             placeholderTextColor="#6b7280"
-                            placeholder="YYYY-MM-DD"
+                            placeholder="DD-MM-YYYY"
                         />
 
                         <Text style={styles.label}>Email</Text>
@@ -690,6 +683,7 @@ export default function UpdateProfile() {
                             alignItems: 'center',
                             marginTop: 8,
                             padding: 16,
+                            marginBottom: '5%',
                             backgroundColor: '#f9fafb',
                             borderWidth: 1,
                             borderColor: '#d1d5db',
@@ -704,42 +698,6 @@ export default function UpdateProfile() {
                         <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
                     </TouchableOpacity>
                 </View>
-
-
-                {/* Delete Account Button - Moved to the end */}
-                {user && (
-                    <View
-                        style={{
-                            padding: 24,
-                            paddingTop: 8,
-                            marginTop: 32, // added marginTop
-                        }}
-                    >
-                        <TouchableOpacity
-                            onPress={() => deleteUser(user.email)}
-                            style={{
-                                width: '100%',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                backgroundColor: '#dc2626',
-                                borderRadius: 12,
-                                height: 48,
-                                marginBottom: 32,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    fontSize: 18,
-                                    fontWeight: '500',
-                                    color: 'white',
-                                }}
-                            >
-                                Delete Account
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
             </ScrollView>
         </KeyboardAvoidingView>
     );
