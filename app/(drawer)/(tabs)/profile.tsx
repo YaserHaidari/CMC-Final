@@ -162,8 +162,8 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className='pt-4 pb-8'>
+    <ScrollView className="flex-1 bg-[#FAF3E0]">
+      <View className='pt-14 pb-8'>
         {loading ? (
           <>
             <ActivityIndicator className="mt-8" />
@@ -182,47 +182,54 @@ export default function ProfileScreen() {
                   <Ionicons name="person" size={48} color="white" />
                 </View>
               )}
-              <Text className="text-2xl font-bold">{user.name}</Text>
-              <Text className="text-base text-gray-600">{user.email}</Text>
-              <Text className="text-base text-gray-600">{user.user_type}</Text>
+              {/* Name + Role Icon */}
+              <View className="flex-row items-center">
+                <Text className="text-2xl font-bold mr-2">{user.name}</Text>
+                {user.user_type === "mentee" ? (
+                  <Ionicons name="school-outline" size={22} color="#1A73E8" /> // mentor icon
+                ) : (
+                  <Ionicons name="person-outline" size={22} color="#34A853" /> // mentee icon
+                )}
+
+              </View>
+              <Text className="text-base text-gray-600 italic">{user.email}</Text>
             </View>
 
-            <Text className='text-xl font-bold mt-6 ml-6 md:ml-8'>Profile Details</Text>
+            <Text className='text-xl font-bold mt-6 ml-6 md:ml-8'>My Details</Text>
             <View className='items-center mt-2'>
-              <TouchableOpacity
-                onPress={() => handlePress("Edit Profile")}
-                className='flex-row items-center mt-2 p-4 bg-gray-50 border border-gray-200 w-11/12 md:w-5/6 rounded-t-lg active:bg-gray-200'
-              >
-                <AntDesign name='edit' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>Edit Profile</Text>
-                <AntDesign name='right' size={20} className='ml-auto' color="gray" />
-              </TouchableOpacity>
-
-              {/* Email */}
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
-                <AntDesign name='mail' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>{user.email}</Text>
-              </View>
-
-              {/* User Type */}
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
-                <MaterialIcons name='person' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>{user.user_type}</Text>
-              </View>
 
               {/* Bio */}
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
+              <View className='flex-row items-center p-4 w-11/12 md:w-5/6 rounded-t-lg'
+                style={{
+                  backgroundColor: '#faf8efff', // light peach background
+                  borderWidth: 1,
+                  borderColor: '#40301eff', // soft peach border
+                  shadowColor: "#000",
+                  shadowOpacity: 0.08,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowRadius: 6,
+                  elevation: 2, // Android shadow
+                }}
+              >
                 <Ionicons name='information-circle-outline' size={24} className='ml-2' color="black" />
                 <Text className='text-lg ml-4 flex-1'>{user.bio || "No bio"}</Text>
               </View>
 
               {/* Skills: Only visible for mentees */}
               {user.user_type.toLowerCase() === "mentee" && (
-                <View
-                  className='flex-row items-start p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'
-                  style={{ paddingRight: 16 }}
+                <View className='flex-row items-center p-4 w-11/12 md:w-5/6 border-t-0'
+                  style={{
+                    backgroundColor: '#faf8efff', // light peach background
+                  borderWidth: 1,
+                  borderColor: '#40301eff', // soft peach border
+                    shadowColor: "#000",
+                    shadowOpacity: 0.08,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowRadius: 6,
+                    elevation: 2, // Android shadow
+                  }}
                 >
-                  <AntDesign name='star' size={24} className='mr-4 mt-1' color="black" />
+                  <AntDesign name='star' size={24} className='ml-2' color="black" />
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1 }}>
                     {user.skills && user.skills.length > 0 ? (
                       user.skills.map((skill, index) => (
@@ -231,8 +238,9 @@ export default function ProfileScreen() {
                           style={{
                             marginRight: 24,
                             marginBottom: 8,
-                            fontSize: 14,
+                            fontSize: 16,
                             color: '#1f2937',
+                            marginLeft: 16,
                           }}
                         >
                           {skill}
@@ -246,25 +254,73 @@ export default function ProfileScreen() {
               )}
 
               {/* DOB */}
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6'>
+              <View className='flex-row items-center p-4 w-11/12 md:w-5/6 border-t-0'
+                style={{
+                  backgroundColor: '#faf8efff', // light peach background
+                  borderWidth: 1,
+                  borderColor: '#40301eff', // soft peach border
+                  shadowColor: "#000",
+                  shadowOpacity: 0.08,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowRadius: 6,
+                  elevation: 2, // Android shadow
+                }}
+              >
                 <AntDesign name='calendar' size={24} className='ml-2' color="black" />
                 <Text className='text-lg ml-4 flex-1'>{user.DOB || "Date of Birth"}</Text>
               </View>
 
               {/* Location */}
-              <View className='flex-row items-center p-4 bg-gray-50 border-x border-b border-gray-200 w-11/12 md:w-5/6 rounded-b-lg'>
+              <View className='flex-row items-center p-4 w-11/12 md:w-5/6 rounded-b-lg border-t-0'
+                style={{
+                  backgroundColor: '#faf8efff', // light peach background
+                  borderWidth: 1,
+                  borderColor: '#40301eff',// soft peach border
+                  shadowColor: "#000",
+                  shadowOpacity: 0.08,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowRadius: 6,
+                  elevation: 2, // Android shadow
+                }}
+              >
                 <Ionicons name='location-outline' size={24} className='ml-2' color="black" />
                 <Text className='text-lg ml-4 flex-1'>{user.Location || "Location"}</Text>
               </View>
             </View>
+            <Text className='text-xl font-bold mt-6 ml-6 md:ml-8'>Actions</Text>
+            {/* Settings */}
+            <TouchableOpacity
+              onPress={() => handlePress("Edit Profile")}
+              className="flex-row items-center m-4 p-5 w-11/12 md:w-5/6 rounded-2xl"
+              style={{
+                backgroundColor: '#faf8efff', // light peach background
+                  borderWidth: 1,
+                  borderColor: '#40301eff', // soft peach border
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowOffset: { width: 0, height: 2 },
+                shadowRadius: 6,
+                elevation: 2, // Android shadow
+              }}
+            >
+              <AntDesign name="setting" size={24} color="#000000ff" />
+              <Text className="text-lg ml-4 flex-1 font-semibold text-gray-800">
+                Settings
+              </Text>
+              <AntDesign name="right" size={20} color="#000000ff" />
+            </TouchableOpacity>
 
-            {/* Sign Out */}
-            <View className='items-center mt-8'>
+            {/* Log Out */}
+            <View className='items-center mt-5'>
               <TouchableOpacity
                 onPress={logoutFunction}
-                className='flex-row items-center justify-center mt-4 p-4 bg-red-500 w-11/12 md:w-5/6 rounded-lg active:bg-red-600'
+                className='flex-row items-center justify-center mt-1 p-4 w-11/12 md:w-5/6 rounded-lg'
+                style={{
+                  backgroundColor: "#1A237E", // dark blue
+                }}
+                activeOpacity={0.8} // better press effect
               >
-                <MaterialIcons name='logout' size={24} className='mr-2' color="white" />
+                <MaterialIcons name='logout' size={24} color="white" style={{ marginRight: 8 }} />
                 <Text className='text-lg text-white font-semibold'>
                   Log Out
                 </Text>
