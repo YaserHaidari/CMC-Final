@@ -52,6 +52,7 @@ function RootLayout() {
           "PinLoginSettingsScreen",
           "writeTestimonial",
           "skills",
+          "mentorprofile",
         ];
         if (typeof screen === "string" && allowedScreens.includes(screen)) {
           router.push(
@@ -98,6 +99,7 @@ function RootLayout() {
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="pin" options={{ headerShown: false }} />
            <Stack.Screen name="friends" options={{ headerShown: false, }} />
+           <Stack.Screen name="mentorProfile" options={{title: 'Mentor Profile'}}/>
           <Stack.Screen
             name="updateProfile"
             options={{ title: "Update Profile" }}
