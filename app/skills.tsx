@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
 import { AntDesign } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 const SKILL_OPTIONS = [
   "Network Security",
@@ -39,7 +40,7 @@ export default function SkillsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Save");
   const [userId, setUserId] = useState<string | null>(null);
-
+  const router = useRouter()
   useEffect(() => {
     const fetchSkills = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -119,6 +120,7 @@ export default function SkillsPage() {
       setSaveStatus("Save");
     } else {
       setInitialSkills([...selectedSkills]);
+      router.back()
       setSaveStatus("Saved");
     }
   };
