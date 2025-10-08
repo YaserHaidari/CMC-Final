@@ -6,6 +6,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import CustomHeader from "@/components/CustomHeader";
 import { useNavigation } from "@react-navigation/native";
 import { ThumbsUp, ThumbsDown } from "lucide-react-native";
+import { router } from "expo-router";
+
 
 
 function HomeScreen() {
@@ -195,6 +197,11 @@ function HomeScreen() {
     }
   };
 
+  const mentorProfile = (mentorId: number) => {
+  // Navigate to mentorProfile screen and pass the mentorId
+  router.push(`/mentorProfile?mentorId=${mentorId}`);
+};
+
   return (
     <View className="flex-1 bg-stone-50">
       {/* Top-right blob */}
@@ -264,22 +271,26 @@ function HomeScreen() {
         <Text className="text-lg font-extrabold font-Menu ml-7 mb-4">Verified Mentors</Text>
 
         {mentors.map((mentor) => (
-          <View key={mentor.mentorid} className="bg-[#e1e2d5ff] rounded-xl mb-4 mx-7 border p-3 overflow-hidden">
+          <TouchableOpacity
+            key={mentor.mentorid}
+            onPress={() => mentorProfile(mentor.mentorid)}
+            className="bg-[#e1e2d5ff] rounded-xl mb-4 mx-7 border p-3 overflow-hidden"
+          >
             <Image
-    source={require('@/assets/images/07-02-02-02.webp')} 
-    style={{
-      position: 'absolute',
-      width: '100%',
-      height: '120%',
-      top: 0,
-      left: 10,
-      right: 4,
-      bottom: 0,
-      opacity: 0.1,
-      resizeMode: 'contain',
-    }}
-    
-  />
+              source={require('@/assets/images/07-02-02-02.webp')}
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: '120%',
+                top: 0,
+                left: 10,
+                right: 4,
+                bottom: 0,
+                opacity: 0.1,
+                resizeMode: 'contain',
+              }}
+
+            />
             <View className="flex-row">
               {mentor.user?.photoURL ? (
                 <Image
@@ -302,7 +313,7 @@ function HomeScreen() {
                     {mentor.user?.bio && mentor.user?.bio.trim() !== "" ? `"${mentor.user?.bio}"` : `"No Bio Added"`}
                   </Text>
                 </View>
-                
+
                 {/* Location if available */}
                 {mentor.user?.location && (
                   <Text className="font-Text mt-1 text-gray-700 pl-1.5">
@@ -345,11 +356,10 @@ function HomeScreen() {
               </TouchableOpacity>
               <Text className="ml-1 font-Text text-base">{mentorVotes[mentor.mentorid]?.down || 0}</Text>
             </View>
-
-          </View>
-        ))}
-      </ScrollView>
-    </View>
+          </TouchableOpacity>
+      ))}
+    </ScrollView>
+  </View>
   );
 }
 export default HomeScreen;
