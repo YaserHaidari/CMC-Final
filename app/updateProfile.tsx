@@ -7,7 +7,7 @@ import SegmentedControl from "@react-native-segmented-control/segmented-control"
 import * as ImagePicker from "expo-image-picker";
 import AWS from "aws-sdk";
 import Constants from "expo-constants";
-import { savePIN, getPIN, deletePIN} from '@/lib/storage';
+import { savePIN, getPIN, deletePIN } from '@/lib/storage';
 import AntDesign from "@expo/vector-icons/build/AntDesign";
 
 interface User {
@@ -307,7 +307,12 @@ export default function UpdateProfile() {
     const handleCancel = () => {
         router.canGoBack() ? router.back() : router.push("/profile");
     };
-
+    //details navigation
+    const handleDetails = (itemName: string) => {
+        if (itemName === "Mentor Settings") {
+            router.push("/details"); // route to mentor-specific details page
+        }
+    };
     // Handle PIN set/change
     const handleSetPin = () => {
         if (pin.length < 4) {
@@ -359,9 +364,9 @@ export default function UpdateProfile() {
                         )}
                     </TouchableOpacity>
                 </View>
-
                 {user && (
                     <View style={styles.formContainer}>
+                        {/* Common User Fields */}
                         <Text style={styles.label}>Name</Text>
                         <TextInput
                             value={newDetail.Name}
@@ -369,6 +374,7 @@ export default function UpdateProfile() {
                             style={styles.input}
                             placeholderTextColor="#6b7280"
                         />
+
                         <Text style={styles.label}>Bio</Text>
                         <TextInput
                             value={newDetail.Bio}
@@ -383,8 +389,8 @@ export default function UpdateProfile() {
                             value={newDetail.DOB}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, DOB: text }))}
                             style={styles.input}
-                            placeholderTextColor="#6b7280"
                             placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#6b7280"
                         />
 
                         <Text style={styles.label}>Email</Text>
@@ -392,8 +398,8 @@ export default function UpdateProfile() {
                             value={newDetail.Email}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, Email: text }))}
                             style={styles.input}
-                            placeholderTextColor="#6b7280"
                             keyboardType="email-address"
+                            placeholderTextColor="#6b7280"
                         />
 
                         <Text style={styles.label}>Location</Text>
@@ -417,235 +423,138 @@ export default function UpdateProfile() {
                                     style={styles.picker}
                                 >
                                     <Picker.Item label="Select your city" value="" />
-                                    {australianCities.map((city, index) => (
-                                        <Picker.Item key={index} label={city} value={city} />
+                                    {australianCities.map((city, idx) => (
+                                        <Picker.Item key={idx} label={city} value={city} />
                                     ))}
                                 </Picker>
                             </View>
                         )}
                         {/* Mentee-specific button */}
-            {user?.user_type?.toLowerCase() === "mentee" && (
-              <TouchableOpacity
-                onPress={() => router.dismissTo('/skills')}
-                style={{
-                  backgroundColor: "#f3f4f6",
-                  paddingVertical: 14,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  marginVertical: 16,
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{ color: "#111827", fontSize: 15, fontWeight: "600" }}
-                >
-                  Add Skills and Interests &gt;
-                </Text>
-              </TouchableOpacity>
-            )}
+                        {user?.user_type?.toLowerCase() === "mentee" && (
+                            <TouchableOpacity
+                                onPress={() => router.dismissTo('/skills')}
+                                style={{
+                                    marginTop: 18,
+                                    backgroundColor: '#faf8efff',
+                                    borderRadius: 12,
+                                    paddingHorizontal: 16,
+                                    height: 48,
+                                    marginBottom: 16,
+                                    borderWidth: 1,
+                                    borderColor: '#40301eff',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
 
-                        {/* Mentor-specific fields */}
-                        {user?.user_type?.toLowerCase() === "mentor" && (
-                            <View style={styles.mentorSection}>
-                                <Text style={styles.sectionTitle}>Mentor Profile</Text>
-
-                                <Text style={styles.label}>Hourly Rate ($)</Text>
-                                <TextInput
-                                    value={mentorProfile.hourly_rate?.toString() || ""}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, hourly_rate: text ? parseInt(text) : null }))}
-                                    style={styles.input}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="e.g. 50"
-                                    keyboardType="numeric"
-                                />
-
-                                <Text style={styles.label}>Years of Experience</Text>
-                                <TextInput
-                                    value={mentorProfile.years_of_experience.toString()}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, years_of_experience: parseInt(text) || 0 }))}
-                                    style={styles.input}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="e.g. 5"
-                                    keyboardType="numeric"
-                                />
-
-                                <Text style={styles.label}>Experience Level</Text>
-                                <TouchableOpacity
-                                    style={styles.pickerContainer}
-                                    onPress={() => setShowExperiencePicker(!showExperiencePicker)}
+                                }}
+                            >
+                                <Text
+                                    style={{ color: "#111827", fontSize: 16, fontWeight: "600" }}
                                 >
-                                    <Text style={[styles.pickerText, !mentorProfile.experience_level && styles.placeholderText]}>
-                                        {mentorProfile.experience_level || "Select experience level"}
+                                    Add Skills and Interests
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {/* Action Buttons */}
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity onPress={handleCancel} style={[styles.button, styles.cancelButton]}>
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleSubmit(user.email)} style={[styles.button, styles.updateButton]}>
+                                <Text style={styles.updateButtonText}>Update</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* --- PIN Section --- */}
+                        <View style={{ marginTop: 8 }}>
+                            <TouchableOpacity
+                                onPress={() => handlePress("Security Settings")}
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    marginTop: 18,
+                                    backgroundColor: '#faf8efff',
+                                    borderRadius: 12,
+                                    marginHorizontal: 0,
+                                    paddingHorizontal: 10,
+                                    height: 48,
+                                    marginBottom: 16,
+                                    borderWidth: 1,
+                                    borderColor: '#40301eff',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <AntDesign name="lock" size={24} style={{ marginRight: 8 }} color="black" />
+                                <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#374151" }}>
+                                    Security Settings
+                                </Text>
+                                <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* --- Mentor Settings --- */}
+                        {user?.user_type?.toLowerCase() === "mentor" && (
+                            <TouchableOpacity
+                                onPress={() => handleDetails("Mentor Settings")}
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    marginTop: 8,
+                                    backgroundColor: '#faf8efff',
+                                    borderRadius: 12,
+                                    marginHorizontal: 0,
+                                    paddingHorizontal: 10,
+                                    height: 48,
+                                    marginBottom: 16,
+                                    borderWidth: 1,
+                                    borderColor: '#40301eff',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <AntDesign name="profile" size={24} style={{ marginRight: 8 }} color="black" />
+                                <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#374151" }}>
+                                    Mentor Settings
+                                </Text>
+                                <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
+                            </TouchableOpacity>
+                        )}
+
+
+                        {/* Delete Account Button - Moved to the end */}
+                        {user && (
+                            <View
+                                style={{
+                                    padding: 24,
+                                    paddingTop: 8,
+                                    marginTop: 16, // added marginTop
+                                }}
+                            >
+                                <TouchableOpacity
+                                    onPress={() => deleteUser(user.email)}
+                                    style={{
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        backgroundColor: '#1724abff',
+                                        borderRadius: 12,
+                                        height: 48,
+                                        marginBottom: 32,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize: 18,
+                                            fontWeight: '500',
+                                            color: 'white',
+                                        }}
+                                    >
+                                        Delete Account
                                     </Text>
                                 </TouchableOpacity>
-
-                                {showExperiencePicker && (
-                                    <View style={styles.pickerWrapper}>
-                                        <Picker
-                                            selectedValue={mentorProfile.experience_level}
-                                            onValueChange={(itemValue) => {
-                                                setMentorProfile(prev => ({ ...prev, experience_level: itemValue }));
-                                                setShowExperiencePicker(false);
-                                            }}
-                                            style={styles.picker}
-                                        >
-                                            {experienceLevels.map((level, index) => (
-                                                <Picker.Item key={index} label={level} value={level} />
-                                            ))}
-                                        </Picker>
-                                    </View>
-                                )}
-
-                                <Text style={styles.label}>Maximum Mentees</Text>
-                                <TextInput
-                                    value={mentorProfile.max_mentees.toString()}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, max_mentees: parseInt(text) || 5 }))}
-                                    style={styles.input}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="e.g. 5"
-                                    keyboardType="numeric"
-                                />
-
-                                <Text style={styles.label}>Availability (hours per week)</Text>
-                                <TextInput
-                                    value={mentorProfile.availability_hours_per_week?.toString() || ""}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, availability_hours_per_week: text ? parseInt(text) : null }))}
-                                    style={styles.input}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="e.g. 10"
-                                    keyboardType="numeric"
-                                />
-
-                                <Text style={styles.label}>Skills (comma-separated)</Text>
-                                <TextInput
-                                    value={mentorProfile.skills.join(", ")}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, skills: text.split(",").map(s => s.trim()).filter(s => s) }))}
-                                    style={[styles.input, styles.multilineInput]}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="Network Security, Ethical Hacking, etc."
-                                    multiline
-                                />
-
-                                <Text style={styles.label}>Specialization Roles (comma-separated)</Text>
-                                <TextInput
-                                    value={mentorProfile.specialization_roles.join(", ")}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, specialization_roles: text.split(",").map(s => s.trim()).filter(s => s) }))}
-                                    style={[styles.input, styles.multilineInput]}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="Security Analyst, Penetration Tester, etc."
-                                    multiline
-                                />
-
-                                <Text style={styles.label}>Industries (comma-separated)</Text>
-                                <TextInput
-                                    value={mentorProfile.industries.join(", ")}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, industries: text.split(",").map(s => s.trim()).filter(s => s) }))}
-                                    style={[styles.input, styles.multilineInput]}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="Banking, Healthcare, Technology, etc."
-                                    multiline
-                                />
-
-                                <Text style={styles.label}>Teaching Style (comma-separated)</Text>
-                                <TextInput
-                                    value={mentorProfile.teaching_style.join(", ")}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, teaching_style: text.split(",").map(s => s.trim()).filter(s => s) }))}
-                                    style={[styles.input, styles.multilineInput]}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="Hands-on Practice, Project-based, etc."
-                                    multiline
-                                />
-
-                                <Text style={styles.label}>Certifications (comma-separated)</Text>
-                                <TextInput
-                                    value={mentorProfile.certifications.join(", ")}
-                                    onChangeText={text => setMentorProfile(prev => ({ ...prev, certifications: text.split(",").map(s => s.trim()).filter(s => s) }))}
-                                    style={[styles.input, styles.multilineInput]}
-                                    placeholderTextColor="#6b7280"
-                                    placeholder="CISSP, CEH, OSCP, etc."
-                                    multiline
-                                />
                             </View>
                         )}
 
-                        <View style={styles.buttonRow}>
-                            <TouchableOpacity
-                                onPress={handleCancel}
-                                style={[styles.button, styles.cancelButton]}
-                            >
-                                <Text style={styles.cancelButtonText}>
-                                    Cancel
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => handleSubmit(user.email)}
-                                style={[styles.button, styles.updateButton]}
-                            >
-                                <Text style={styles.updateButtonText}>
-                                    Update
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-
-                {/* --- PIN Section --- */}
-                <View style={{ alignItems: 'center', marginTop: 8 }}>
-                    <TouchableOpacity
-                        onPress={() => handlePress("Security Settings")}
-                        style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            marginTop: 8,
-                            padding: 16,
-                            backgroundColor: '#f9fafb',
-                            borderWidth: 1,
-                            borderColor: '#d1d5db',
-                            width: '90%',
-                            borderRadius: 12,
-                        }}
-                    >
-                        <AntDesign name="lock" size={24} style={{ marginRight: 8 }} color="black" />
-                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: 'black', flex: 1 }}>
-                            Security Settings
-                        </Text>
-                        <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
-                    </TouchableOpacity>
-                </View>
-
-
-                {/* Delete Account Button - Moved to the end */}
-                {user && (
-                    <View
-                        style={{
-                            padding: 24,
-                            paddingTop: 8,
-                            marginTop: 32, // added marginTop
-                        }}
-                    >
-                        <TouchableOpacity
-                            onPress={() => deleteUser(user.email)}
-                            style={{
-                                width: '100%',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                backgroundColor: '#dc2626',
-                                borderRadius: 12,
-                                height: 48,
-                                marginBottom: 32,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    fontSize: 18,
-                                    fontWeight: '500',
-                                    color: 'white',
-                                }}
-                            >
-                                Delete Account
-                            </Text>
-                        </TouchableOpacity>
+                        {/* Close the form container View and the user conditional */}
                     </View>
                 )}
 
@@ -838,20 +747,21 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'white',
+        backgroundColor: "#FAF3E0",
     },
     container: {
         flex: 1,
-        backgroundColor: 'white',
+        backgroundColor: "#FAF3E0",
+        paddingTop: 20,
     },
     scrollView: {
-        backgroundColor: 'white',
+        backgroundColor: 'transparent',
     },
     profileSection: {
         width: '100%',
         padding: 24,
         alignItems: 'center',
-        backgroundColor: 'white',
+        backgroundColor: "#FAF3E0",
     },
     profileAvatar: {
         width: 120,
@@ -877,14 +787,14 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     input: {
-        backgroundColor: '#f3f4f6',
+        backgroundColor: '#faf8efff',
         borderRadius: 12,
         paddingHorizontal: 16,
         height: 48,
         fontSize: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: '#40301eff',
         color: '#111827',
     },
     multilineInput: {
@@ -909,11 +819,11 @@ const styles = StyleSheet.create({
         height: 48,
     },
     cancelButton: {
-        backgroundColor: '#e5e7eb',
+        backgroundColor: '#d3c8b2ff',
         marginRight: 8,
     },
     updateButton: {
-        backgroundColor: '#3b82f6',
+        backgroundColor: '#4f3b2bff',
         marginLeft: 8,
     },
     cancelButtonText: {
@@ -944,11 +854,11 @@ const styles = StyleSheet.create({
         fontSize: 18,
         textAlign: 'center',
         color: '#111827',
-        backgroundColor: '#f9fafb',
+        backgroundColor: '#faf8efff',
         marginBottom: 16,
     },
     pinButton: {
-        backgroundColor: '#3b82f6',
+        backgroundColor: '#4f3b2bff',
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -977,14 +887,14 @@ const styles = StyleSheet.create({
         color: 'white',
     },
     pickerContainer: {
-        backgroundColor: '#f3f4f6',
+        backgroundColor: '#faf8efff',
         borderRadius: 12,
         paddingHorizontal: 16,
         height: 48,
         justifyContent: 'center',
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: '#40301eff',
     },
     pickerText: {
         fontSize: 16,
@@ -994,11 +904,11 @@ const styles = StyleSheet.create({
         color: 'black',
     },
     pickerWrapper: {
-        backgroundColor: '#f3f4f6',
+        backgroundColor: '#faf8efff',
         borderRadius: 12,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: '#40301eff',
         maxHeight: 200,
     },
     picker: {
