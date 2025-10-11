@@ -91,7 +91,8 @@ export default function PinLoginSettingsScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-white p-6">
+    <ScrollView className="flex-1 p-6" style={{ backgroundColor: '#FAF3E0' }}>
+
       <Text className="text-3xl font-bold mb-10">PIN Settings</Text>
 
       <View className="flex-row justify-between items-center mb-10">
@@ -109,7 +110,8 @@ export default function PinLoginSettingsScreen() {
           value={oldPin}
           onChangeText={setOldPin}
           placeholderTextColor={"black"}
-          className="border p-4 mb-5 text-center text-black border-gray-250 rounded"
+          className="border p-4 mb-5 text-center text-black border-gray-250 rounded-lg"
+          style={{ backgroundColor: '#faf8efff' }}
         />
       )}
       <TextInput
@@ -120,7 +122,8 @@ export default function PinLoginSettingsScreen() {
         value={newPin}
         onChangeText={setNewPin}
         placeholderTextColor={"black"}
-        className="border p-4 mb-5 text-center text-black border-gray-250 rounded"
+        className="border p-4 mb-5 text-center text-black border-gray-250 rounded-lg"
+        style={{ backgroundColor: '#faf8efff' }}
       />
       <TextInput
         placeholder="Confirm New PIN"
@@ -130,12 +133,13 @@ export default function PinLoginSettingsScreen() {
         value={confirmPin}
         onChangeText={setConfirmPin}
         placeholderTextColor={"black"}
-        className="border p-4 mb-5 text-center text-black border-gray-250 rounded"
+        className="border p-4 mb-5 text-center text-black border-gray-250 rounded-lg"
+        style={{ backgroundColor: '#faf8efff' }}
       />
       <TouchableOpacity 
   onPress={handleChangePIN} 
   style={{
-    backgroundColor: '#00c4cc',  // your custom color
+    backgroundColor: '#1724abff',  
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',

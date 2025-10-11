@@ -3,9 +3,10 @@ import {
   View,
   Text,
   TouchableOpacity,
+  StyleSheet,
   ScrollView,
   Alert,
-  StyleSheet
+  ImageBackground,
 } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
 import { router } from "expo-router";
@@ -15,86 +16,9 @@ type Friend = {
   name: string;
   email: string;
   user_type: string;
-  auth_id: string;
+  auth_id: string; // UUID from Supabase Auth
   status: string;
 };
-
-// Dropdown component (frontend-only behavior)
-function FriendOptions({
-  friend,
-  isOpen,
-  onToggle,
-  onBlock,
-  onTestimonial,
-  isBlocked,
-}: {
-  friend: Friend;
-  isOpen: boolean;
-  onToggle: () => void;
-  onBlock: (f: Friend) => void;
-  onTestimonial: (f: Friend) => void;
-  isBlocked: boolean;
-}) {
-  const confirmBlock = () => {
-    Alert.alert(
-      isBlocked ? "Unblock User" : "Block User",
-      `Are you sure you want to ${isBlocked ? "unblock" : "block"} ${
-        friend.name
-      }?`,
-      [
-        { text: "Cancel", style: "cancel", onPress: () => onToggle() },
-        {
-          text: isBlocked ? "Unblock" : "Block",
-          style: "destructive",
-          onPress: () => {
-            onToggle();
-            onBlock(friend);
-          },
-        },
-      ]
-    );
-  };
-
-  return (
-    <View className="relative items-center">
-      {/* Options button */}
-      <TouchableOpacity
-        onPress={onToggle}
-        className="p-2"
-        accessibilityLabel={`options-${friend.auth_id}`}
-      >
-        <Text className="text-xl">⋮</Text>
-      </TouchableOpacity>
-
-      {/* Dropdown menu */}
-      {isOpen && (
-        <View
-          className="absolute right-0 top-12 w-44 bg-white rounded-lg shadow-lg z-50"
-          style={{ elevation: 10 }}
-        >
-          <TouchableOpacity
-            className="px-4 py-3 border-b border-gray-100"
-            onPress={confirmBlock}
-          >
-            <Text className="text-sm text-gray-800">
-              {isBlocked ? "Unblock User" : "Block User"}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="px-4 py-3"
-            onPress={() => {
-              onToggle();
-              onTestimonial(friend); // navigate immediately
-            }}
-          >
-            <Text className="text-sm text-gray-800">Write Testimonial</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
-}
 
 export default function Friends() {
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -103,12 +27,7 @@ export default function Friends() {
   const [blockedByMe, setBlockedByMe] = useState<string[]>([]);
   const [blockedMe, setBlockedMe] = useState<string[]>([]);
 
-  // UI: which friend's menu is open (auth_id) — frontend only
-  const [openMenuFor, setOpenMenuFor] = useState<string | null>(null);
-  const toggleMenu = (authId: string) =>
-    setOpenMenuFor((prev) => (prev === authId ? null : authId));
-
-  // Fetch logged-in user
+  //  Get logged-in user's info
   useEffect(() => {
     async function fetchCurrentUser() {
       try {
@@ -128,7 +47,7 @@ export default function Friends() {
     fetchCurrentUser();
   }, []);
 
-  // Fetch blocked users
+  //  Fetch blocked users (mutual check: separate by direction)
   useEffect(() => {
     if (!currentAuthId) return;
 
@@ -168,7 +87,7 @@ export default function Friends() {
     fetchBlocked();
   }, [currentAuthId]);
 
-  // Fetch mentorship connections
+  //  Fetch users with approved mentorship requests
   useEffect(() => {
     async function fetchFriends() {
       if (!currentUserEmail || !currentAuthId) return;
@@ -307,14 +226,13 @@ export default function Friends() {
     fetchFriends();
   }, [currentUserEmail, currentAuthId]);
 
-  // toggleBlock (unchanged logic)
+  //  Handle block/unblock (only blocker can unblock)
   async function toggleBlock(friend: Friend) {
     if (!currentAuthId) return;
 
     const isBlockedByMe = blockedByMe.includes(friend.auth_id);
 
     if (isBlockedByMe) {
-      // Only allow unblock if current user is the blocker
       const { error } = await supabase
         .from("blocks")
         .delete()
@@ -349,7 +267,23 @@ export default function Friends() {
     }
   }
 
-  // handleChat (unchanged)
+  function showBlockMenu(friend: Friend) {
+    const isBlockedByMe = blockedByMe.includes(friend.auth_id);
+    Alert.alert(
+      friend.name,
+      isBlockedByMe
+        ? "Do you want to unblock this user?"
+        : "Do you want to block this user?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: isBlockedByMe ? "Unblock" : "Block",
+          onPress: () => toggleBlock(friend),
+        },
+      ]
+    );
+  }
+
   function handleChat(friend: Friend) {
     if (blockedByMe.includes(friend.auth_id)) {
       Alert.alert(
@@ -367,82 +301,83 @@ export default function Friends() {
     router.push({
       pathname: "/chat",
       params: {
-        recipientId: friend.auth_id, // Use auth_id (UUID) instead of id (number)
-        recipientName: friend.name, // Use recipientName instead of userName
+        recipientId: friend.auth_id,
+        recipientName: friend.name,
       },
     });
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-100 pt-8 px-4">
-      <Text className="text-2xl font-bold mb-5 text-gray-900 tracking-tight">
-        My Connections
-      </Text>
-
-      {friends.length === 0 ? (
-        <Text className="text-center text-gray-500 mt-10 text-base">
-          No approved mentorship connections yet.
-        </Text>
-      ) : (
-        friends.map((friend) => (
-          <View
-            key={`${friend.user_type}_${friend.id}`}
-            className="flex-row items-center bg-white rounded-xl p-4 mb-3 shadow"
-          >
-            <TouchableOpacity
-              className="flex-1 flex-row items-center"
-              onPress={() => handleChat(friend)}
-            >
-              <Text className="w-11 h-11 rounded-full bg-blue-600 text-white font-bold text-lg text-center leading-[44px] mr-4">
-                {friend.name[0]?.toUpperCase()}
-              </Text>
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-gray-900">
-                  {friend.name}
-                </Text>
-                <Text className="text-xs text-gray-500 mt-0.5">
-                  {friend.email}
-                </Text>
-                <View className="flex-row items-center mt-1">
-                  <Text className="text-[11px] text-gray-400 font-medium mr-2">
-                    {friend.user_type}
-                  </Text>
-                  <View className="bg-green-100 rounded-full px-2 py-0.5">
-                    <Text className="text-[10px] text-green-700 font-semibold">
-                      ✓ {friend.status}
-                    </Text>
+    <ImageBackground
+      source={require('@/assets/images/friendsPage.png')}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      {/* Overlay to lighten the image */}
+      <View style={styles.overlay}>
+        <ScrollView style={styles.container}>
+          <Text style={styles.header}>My Friends</Text>
+          {friends.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No approved mentorship connections yet.
+            </Text>
+          ) : (
+            friends.map((friend) => (
+              <View key={`${friend.user_type}_${friend.id}`} style={styles.card}>
+                <TouchableOpacity
+                  style={{ flex: 1, flexDirection: "row", alignItems: "center" }}
+                  onPress={() => handleChat(friend)}
+                >
+                  <Text style={styles.avatar}>{friend.name[0]?.toUpperCase()}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{friend.name}</Text>
+                    <Text style={styles.email}>{friend.email}</Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginTop: 2,
+                      }}
+                    >
+                      <Text style={styles.userType}>{friend.user_type}</Text>
+                      <View style={styles.statusBadge}>
+                        <Text style={styles.statusText}>✓ {friend.status}</Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => showBlockMenu(friend)}
+                  style={{ padding: 8 }}
+                >
+                  <Text style={{ fontSize: 20 }}>⋮</Text>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-
-            <FriendOptions
-              friend={friend}
-              isOpen={openMenuFor === friend.auth_id}
-              onToggle={() => toggleMenu(friend.auth_id)}
-              onBlock={(f) => toggleBlock(f)}
-              onTestimonial={(f) =>
-                router.push({
-                  pathname: "/writeTestimonial",
-                  params: { mentorId: f.auth_id, mentorName: f.name },
-                })
-              }
-              isBlocked={blockedByMe.includes(friend.auth_id)}
-            />
-          </View>
-        ))
-      )}
-    </ScrollView>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  // Background styles
+  background: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.91)",
+  },
+
   container: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
-    paddingTop: 32,
+    backgroundColor: "transparent",
+    paddingTop: 80,
     paddingHorizontal: 16,
-    marginTop: '2%',
   },
   header: {
     fontSize: 26,
@@ -464,6 +399,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
+    marginTop: 8,
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 4,

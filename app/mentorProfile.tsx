@@ -39,7 +39,7 @@ export default function MentorDetails() {
   if (!mentor) return <Text className="p-5">Mentor not found</Text>;
 
   return (
-    <ScrollView className="flex-1 bg-stone-50 p-5 bgcolor-[#a6c6c5ff]">
+    <ScrollView className="flex-1 p-5 bg-[#FAF3E0]">
       {/* Photo n Name */}
       <View className="items-center mb-6">
         {mentor.user?.photoURL ? (
