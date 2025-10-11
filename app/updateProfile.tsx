@@ -686,41 +686,6 @@ export default function UpdateProfile() {
                             </TouchableOpacity>
                         )}
 
-
-                        {/* Delete Account Button - Moved to the end */}
-                        {user && (
-                            <View
-                                style={{
-                                    padding: 24,
-                                    paddingTop: 8,
-                                    marginTop: 16, // added marginTop
-                                }}
-                            >
-                                <TouchableOpacity
-                                    onPress={() => deleteUser(user.email)}
-                                    style={{
-                                        width: '100%',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        backgroundColor: '#1724abff',
-                                        borderRadius: 12,
-                                        height: 48,
-                                        marginBottom: 32,
-                                    }}
-                                >
-                                    <Text
-                                        style={{
-                                            fontSize: 18,
-                                            fontWeight: '500',
-                                            color: 'white',
-                                        }}
-                                    >
-                                        Delete Account
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
                         {/* Close the form container View and the user conditional */}
                     </View>
                 )}

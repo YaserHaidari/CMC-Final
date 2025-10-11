@@ -316,7 +316,7 @@ export default function Friends() {
       {/* Overlay to lighten the image */}
       <View style={styles.overlay}>
         <ScrollView style={styles.container}>
-          <Text style={styles.header}>My Friends</Text>
+          <Text style={styles.header}>My Mentors</Text>
           {friends.length === 0 ? (
             <Text style={styles.emptyText}>
               No approved mentorship connections yet.
