@@ -196,6 +196,7 @@ function HomeScreen() {
   };
 
   return (
+    
     <View className="flex-1 bg-stone-50">
       {/* Top-right blob */}
       <View
@@ -203,7 +204,7 @@ function HomeScreen() {
           position: 'absolute',
           width: 350,
           height: 280,
-          backgroundColor: '#F8DD2E',
+          backgroundColor: '#e5c97bff',
           borderTopLeftRadius: 150,
           borderTopRightRadius: 50,
           borderBottomLeftRadius: 50,
@@ -222,7 +223,7 @@ function HomeScreen() {
           position: 'absolute',
           width: 320,
           height: 260,
-          backgroundColor: '#4FCBE9', // deep sky blue
+          backgroundColor: '#40301eff', // deep sky blue
           borderTopLeftRadius: 100,
           borderTopRightRadius: 150,
           borderBottomLeftRadius: 150,
@@ -264,6 +265,12 @@ function HomeScreen() {
         <Text className="text-lg font-extrabold font-Menu ml-7 mb-4">Verified Mentors</Text>
 
         {mentors.map((mentor) => (
+          <TouchableOpacity
+            key={mentor.mentorid}
+            onPress={() => mentorProfile(mentor.mentorid)}
+            className="bg-[#e1e2d5ff] rounded-xl mb-4 mx-7 border p-3 overflow-hidden"
+          >
+           
           <View key={mentor.mentorid} className="bg-[#e1e2d5ff] rounded-xl mb-4 mx-7 border p-3 overflow-hidden">
             <Image
     source={require('@/assets/images/07-02-02-02.webp')} 

@@ -338,6 +338,82 @@ export default function UpdateProfile() {
         }
     };
 
+    async function handleAvatarPress(): Promise<void> {
+        if (uploading) return;
+
+        try {
+            // Ask permission
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission required', 'Permission to access photos is required to update your avatar.');
+                return;
+            }
+
+            // Let user pick an image
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            // Newer Expo ImagePicker returns an assets array; fall back to legacy result.uri
+            const localUri = (result as any).assets?.[0]?.uri ?? (result as any).uri;
+            if (!localUri || (result as any).cancelled) return;
+
+            setUploading(true);
+
+            // Prepare file info
+            const filename = localUri.split('/').pop() || `avatar_${user?.id ?? Date.now()}`;
+            const match = /\.(\w+)$/.exec(filename);
+            const ext = match ? match[1].toLowerCase() : 'jpg';
+            const contentType =
+                ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+
+            // Fetch the file as blob
+            const response = await fetch(localUri);
+            const blob = await response.blob();
+
+            // Build S3 key and upload
+            const key = `avatars/${user?.id ?? 'anonymous'}/${Date.now()}.${ext}`;
+            const uploadParams = {
+                Bucket: S3_BUCKET,
+                Key: key,
+                Body: blob,
+                ContentType: contentType,
+                ACL: 'public-read',
+            };
+
+            const uploadResult: any = await s3.upload(uploadParams).promise();
+            const s3Url =
+                uploadResult?.Location ??
+                `https://${S3_BUCKET}.s3.${Constants.expoConfig?.extra?.AWS_REGION}.amazonaws.com/${key}`;
+
+            // Update user record in Supabase
+            const identifier = user?.email ?? session?.user?.email;
+            if (identifier) {
+                const { error } = await supabase.from('users').update({ photoURL: s3Url }).eq('email', identifier);
+                if (error) {
+                    console.warn('Failed updating photoURL in DB:', error);
+                    Alert.alert('Error', 'Uploaded image but failed to update profile.');
+                } else {
+                    setImgUri(s3Url);
+                    setUser(prev => (prev ? { ...prev, photoURL: s3Url } : prev));
+                    Alert.alert('Success', 'Profile picture updated.');
+                }
+            } else {
+                // Fallback: still update local state
+                setImgUri(s3Url);
+                Alert.alert('Success', 'Profile picture uploaded (could not update server).');
+            }
+        } catch (err) {
+            console.error('Avatar upload error:', err);
+            Alert.alert('Error', 'Failed to upload avatar. Please try again.');
+        } finally {
+            setUploading(false);
+        }
+    }
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -740,10 +816,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#e5e7eb",
   },
-
-})}}}
-=======
-    loadingContainer: {
+   loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
