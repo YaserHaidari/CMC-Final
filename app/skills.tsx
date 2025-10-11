@@ -131,7 +131,7 @@ export default function SkillsPage() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#f9fafb" }}
+      style={{ flex: 1, backgroundColor: "#FAF3E0" }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Header */}
@@ -161,7 +161,7 @@ export default function SkillsPage() {
           <TouchableOpacity
             style={[
               styles.addButton,
-              { backgroundColor: customSkillInput.trim() ? "#2563eb" : "#cbd5e1" },
+              { backgroundColor: customSkillInput.trim() ? "#40301eff" : "#cbd5e1" },
             ]}
             disabled={!customSkillInput.trim()}
             onPress={addCustomSkill}
@@ -249,7 +249,7 @@ export default function SkillsPage() {
 const styles = StyleSheet.create({
   header: {
     padding: 20,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#FAF3E0",
   },
   title: {
     fontSize: 26,
@@ -339,12 +339,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButton: {
-    backgroundColor: "#2563eb",
+    backgroundColor: "#40301eff",
     paddingVertical: 16,
     paddingHorizontal: 40,
     borderRadius: 12,
     alignItems: "center",
   },
-  disabledButton: { backgroundColor: "#cbd5e1" },
+  disabledButton: { backgroundColor: "#71695fff" },
   saveButtonText: { color: "white", fontSize: 17, fontWeight: "600" },
 });
