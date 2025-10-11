@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { View, Text, Image, ScrollView, Button, Alert, StyleSheet } from "react-native";
+import { View, Text, Image, ScrollView, Button, Alert, StyleSheet, TextInput, ImageBackground } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
+import { Swipeable } from "react-native-gesture-handler";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface UserInfo {
@@ -11,7 +13,7 @@ interface UserInfo {
 interface MentorshipRequest {
   id: string;
   created_at: string;
-  status: 'pending' | 'accepted' | 'declined'; // Changed to only lowercase
+  status: 'pending' | 'accepted' | 'declined';
   message?: string;
   mentee_id: number;
   mentor_id: number;
@@ -23,6 +25,7 @@ function NotificationsScreen() {
   const [requests, setRequests] = useState<MentorshipRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
     fetchCurrentSupabaseUserAndRequests();
@@ -39,14 +42,11 @@ function NotificationsScreen() {
     }
 
     try {
-      // Get user data from users table to determine role
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("id, user_type")
         .eq("email", session.user.email)
         .single();
-
-      console.log("Fetched userData:", userData);
 
       if (userError || !userData?.user_type) {
         Alert.alert("Error", "Could not verify your user profile.");
@@ -57,50 +57,28 @@ function NotificationsScreen() {
       setRole(userData.user_type);
 
       if (userData.user_type.toLowerCase() === "mentor") {
-        // Get mentor ID from mentors table using auth_user_id (UUID)
-        console.log("Looking for mentor with auth_user_id:", session.user.id);
         let { data: mentorData, error: mentorError } = await supabase
           .from("mentors")
           .select("mentorid, user_id")
           .eq("user_id", session.user.id)
           .single();
 
-        console.log("Mentor lookup result:", { mentorData, mentorError });
-
         if (mentorError || !mentorData) {
-          // Try to find any mentors to debug
-          const { data: allMentors } = await supabase
-            .from("mentors")
-            .select("mentorid, user_id")
-            .limit(5);
-          console.log("Available mentors in database:", allMentors);
-          
-          Alert.alert("Error", `Could not find your mentor profile. Error: ${mentorError?.message || 'No data found'}\n\nTip: Try registering a new mentor account.`);
+          Alert.alert("Error", `Could not find your mentor profile.`);
           setIsLoading(false);
           return;
         }
 
         fetchMentorshipRequestsForTutor(mentorData.mentorid);
       } else {
-        // Get mentee ID from mentees table using auth_user_id (UUID)
-        console.log("Looking for mentee with auth_user_id:", session.user.id);
         let { data: menteeData, error: menteeError } = await supabase
           .from("mentees")
           .select("menteeid, user_id")
           .eq("user_id", session.user.id)
           .single();
 
-        console.log("Mentee lookup result:", { menteeData, menteeError });
-
         if (menteeError || !menteeData) {
-          // Try to find any mentees to debug
-          const { data: allMentees } = await supabase
-            .from("mentees")
-            .select("menteeid, user_id")
-            .limit(5);
-          console.log("Available mentees in database:", allMentees);
-          
-          Alert.alert("Error", `Could not find your mentee profile. Error: ${menteeError?.message || 'No data found'}\n\nTip: Try registering a new mentee account.`);
+          Alert.alert("Error", `Could not find your mentee profile.`);
           setIsLoading(false);
           return;
         }
@@ -113,24 +91,15 @@ function NotificationsScreen() {
     }
   }
 
-  // For mentors: show all mentorship requests where you are the mentor
   async function fetchMentorshipRequestsForTutor(mentorId: number) {
     try {
       const { data, error } = await supabase
         .from('mentorship_requests')
-        .select(`
-          id,
-          created_at,
-          status,
-          message,
-          mentee_id,
-          mentor_id
-        `)
+        .select(`id, created_at, status, message, mentee_id, mentor_id`)
         .eq('mentor_id', mentorId)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error("Error fetching tutor requests:", error);
         Alert.alert("Error", `Could not load mentorship requests: ${error.message}`);
         setRequests([]);
         setIsLoading(false);
@@ -143,10 +112,8 @@ function NotificationsScreen() {
         return;
       }
 
-      // Fetch user details for mentees using separate queries
       const combinedData = await Promise.all(data.map(async (req) => {
         try {
-          // Get mentee data
           const { data: menteeData } = await supabase
             .from('mentees')
             .select('user_id')
@@ -154,7 +121,6 @@ function NotificationsScreen() {
             .single();
 
           if (menteeData?.user_id) {
-            // Get user data using auth_user_id (UUID)
             const { data: userData } = await supabase
               .from('users')
               .select('name, email')
@@ -163,89 +129,55 @@ function NotificationsScreen() {
 
             return {
               ...req,
-              status: req.status.toLowerCase(), // Convert to lowercase
+              status: req.status.toLowerCase(),
               mentee: userData ? [{ name: userData.name, email: userData.email }] : []
             };
           }
-        } catch (error) {
-          console.error('Error fetching mentee data for request:', req.id, error);
-        }
+        } catch (error) {}
 
-        return {
-          ...req,
-          status: req.status.toLowerCase(), // Convert to lowercase
-          mentee: []
-        };
+        return { ...req, status: req.status.toLowerCase(), mentee: [] };
       }));
 
-      // Filter to show only the most recent request from each mentee
       const uniqueRequests = combinedData.reduce((acc, current) => {
         const existingRequest = acc.find(req => req.mentee_id === current.mentee_id);
-        
         if (!existingRequest) {
-          // If no existing request from this mentee, add it
           acc.push(current);
         } else {
-          // If there's an existing request, keep the more recent one
           const currentDate = new Date(current.created_at);
           const existingDate = new Date(existingRequest.created_at);
-          
           if (currentDate > existingDate) {
-            // Replace with more recent request
             const index = acc.findIndex(req => req.mentee_id === current.mentee_id);
             acc[index] = current;
           }
         }
-        
         return acc;
       }, [] as MentorshipRequest[]);
 
       setRequests(uniqueRequests);
-      console.log("Fetched tutor requests (unique per mentee):", uniqueRequests);
-    } catch (e: any) {
-      console.error("Unexpected error fetching tutor requests:", e);
-      Alert.alert("Error", "An unexpected error occurred while fetching requests.");
+    } catch (e) {
       setRequests([]);
     } finally {
       setIsLoading(false);
     }
   }
 
-  // For mentees: show all accepted mentors
   async function fetchAcceptedMentorsForStudent(menteeId: number) {
     try {
       const { data, error } = await supabase
         .from('mentorship_requests')
-        .select(`
-          id,
-          created_at,
-          status,
-          message,
-          mentee_id,
-          mentor_id
-        `)
+        .select(`id, created_at, status, message, mentee_id, mentor_id`)
         .eq('mentee_id', menteeId)
         .ilike('status', 'accepted')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Error fetching student mentors:", error);
-        Alert.alert("Error", "Could not load accepted mentors");
+      if (error || !data) {
         setRequests([]);
         setIsLoading(false);
         return;
       }
 
-      if (!data || data.length === 0) {
-        setRequests([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Fetch user details for mentors using separate queries
       const combinedData = await Promise.all(data.map(async (req) => {
         try {
-          // Get mentor data
           const { data: mentorData } = await supabase
             .from('mentors')
             .select('user_id')
@@ -253,35 +185,21 @@ function NotificationsScreen() {
             .single();
 
           if (mentorData?.user_id) {
-            // Get user data using auth_user_id (UUID)
             const { data: userData } = await supabase
               .from('users')
               .select('name, email')
               .eq('auth_user_id', mentorData.user_id)
               .single();
 
-            return {
-              ...req,
-              status: req.status.toLowerCase(), // Convert to lowercase
-              mentor: userData ? [{ name: userData.name, email: userData.email }] : []
-            };
+            return { ...req, status: req.status.toLowerCase(), mentor: userData ? [{ name: userData.name, email: userData.email }] : [] };
           }
-        } catch (error) {
-          console.error('Error fetching mentor data for request:', req.id, error);
-        }
+        } catch (error) {}
 
-        return {
-          ...req,
-          status: req.status.toLowerCase(), // Convert to lowercase
-          mentor: []
-        };
+        return { ...req, status: req.status.toLowerCase(), mentor: [] };
       }));
 
       setRequests(combinedData as MentorshipRequest[]);
-      console.log("Fetched student mentors:", combinedData);
-    } catch (e: any) {
-      console.error("Unexpected error fetching student mentors:", e);
-      Alert.alert("Error", "An unexpected error occurred while fetching mentors.");
+    } catch (e) {
       setRequests([]);
     } finally {
       setIsLoading(false);
@@ -290,31 +208,11 @@ function NotificationsScreen() {
 
   async function handleRequestAction(requestId: string, newStatus: 'accepted' | 'declined') {
     try {
-      console.log('Updating request:', requestId, 'to status:', newStatus);
-      
-      // Use lowercase status to match our interface
       const lowercaseStatus = newStatus;
-      
-      // First, verify the request exists and get current status
-      const { data: currentRequest, error: fetchError } = await supabase
-        .from('mentorship_requests')
-        .select('id, status, mentor_id')
-        .eq('id', requestId)
-        .single();
-
-      if (fetchError || !currentRequest) {
-        console.error('Request not found:', fetchError);
-        Alert.alert('Error', 'Request not found or you do not have permission to update it.');
-        return;
-      }
-
-      console.log('Current request data:', currentRequest);
-
-      // Update the request - store lowercase in database
       const { data: updateData, error } = await supabase
         .from('mentorship_requests')
         .update({ 
-          status: lowercaseStatus, // Store lowercase
+          status: lowercaseStatus,
           responded_at: new Date().toISOString(),
           response_message: newStatus === 'accepted' 
             ? 'Mentorship request has been accepted!' 
@@ -323,38 +221,55 @@ function NotificationsScreen() {
         .eq('id', requestId)
         .select('*');
 
-      console.log('Update result:', { updateData, error });
-
-      if (error) {
-        console.error('Update error:', error);
-        Alert.alert('Error', `Could not ${newStatus} the request. Details: ${error.message}`);
-      } else if (updateData && updateData.length > 0) {
-        console.log('Update successful:', updateData[0]);
-        Alert.alert('Success', `Request ${newStatus} successfully!`);
-        
-        // Update local state - ensure lowercase
+      if (updateData && updateData.length > 0) {
         setRequests(prevRequests =>
           prevRequests.map(req =>
-            req.id === requestId ? { 
-              ...req, 
-              status: updateData[0].status.toLowerCase() as 'pending' | 'accepted' | 'declined'
-            } : req
+            req.id === requestId ? { ...req, status: updateData[0].status.toLowerCase() as 'pending' | 'accepted' | 'declined' } : req
           )
         );
-        
-        // Refresh the requests to get latest data
+
         setTimeout(() => {
           fetchCurrentSupabaseUserAndRequests();
         }, 1000);
-      } else {
-        console.log('No data returned from update');
-        Alert.alert('Notice', `Request status may not have updated. Please refresh.`);
       }
-    } catch (e: any) {
-      console.error('Unexpected error in handleRequestAction:', e);
-      Alert.alert('Error', `An unexpected error occurred: ${e.message}`);
+    } catch (e) {}
+  }
+
+  async function handleDeleteRequest(requestId: string) {
+    try {
+      await supabase
+        .from('mentorship_requests')
+        .delete()
+        .eq('id', requestId);
+
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (error) {
+      Alert.alert("Error", "Could not delete request.");
     }
   }
+
+  const renderRightActions = (requestId: string) => {
+    return (
+      <View
+        style={{
+          backgroundColor: "#EF4444",
+          justifyContent: "center",
+          alignItems: "center",
+          width: 70,
+          borderRadius: 16,
+          marginVertical: 8,
+          marginRight: 16,
+        }}
+      >
+        <Ionicons
+          name="trash"
+          size={24}
+          color="white"
+          onPress={() => handleDeleteRequest(requestId)}
+        />
+      </View>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -364,141 +279,173 @@ function NotificationsScreen() {
     );
   }
 
+  const filteredRequests = requests.filter(req => {
+    const searchLower = searchText.toLowerCase();
+    const name = role && role.toLowerCase() === "mentor"
+      ? req.mentee?.[0]?.name || ''
+      : req.mentor?.[0]?.name || '';
+    const email = role && role.toLowerCase() === "mentor"
+      ? req.mentee?.[0]?.email || ''
+      : req.mentor?.[0]?.email || '';
+    return name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
+  });
+
   return (
+    <ImageBackground
+      source={require('@/assets/images/notificationsPage.png')} // Your background image
+      style={{ flex: 1 }}
+      resizeMode="cover"
+    >
+      <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.83)' }}>
+        <ScrollView style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>
+              {role && role.toLowerCase() === "mentor" ? "🎓 Mentorship Requests" : "👨‍🏫 Your Mentors"}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {role && role.toLowerCase() === "mentor" 
+                ? "Students seeking your guidance" 
+                : "Your accepted mentorship connections"}
+            </Text>
+          </View>
 
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {role && role.toLowerCase() === "mentor" ? "🎓 Mentorship Requests" : "👨‍🏫 Your Mentors"}
-        </Text>
-        <Text style={styles.headerSubtitle}>
-          {role && role.toLowerCase() === "mentor" 
-            ? "Students seeking your guidance" 
-            : "Your accepted mentorship connections"}
-        </Text>
-      </View>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name ..."
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
 
-      {requests.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>
-            {role && role.toLowerCase() === "mentor" ? "📬" : "🤝"}
-          </Text>
-          <Text style={styles.emptyTitle}>
-            {role && role.toLowerCase() === "mentor"
-              ? "No requests yet"
-              : "No mentors yet"}
-          </Text>
-          <Text style={styles.emptyDescription}>
-            {role && role.toLowerCase() === "mentor"
-              ? "When students request mentorship, they'll appear here."
-              : "When mentors accept your requests, they'll appear here."}
-          </Text>
-        </View>
-      ) : (
-        requests.map((request) => (
-          <View key={request.id} style={styles.requestCard}>
-            {/* Status Badge - Updated conditions */}
-            <View style={[
-              styles.statusBadge,
-              request.status === 'pending' && styles.pendingBadge,
-              request.status === 'accepted' && styles.acceptedBadge,
-              request.status === 'declined' && styles.declinedBadge,
-            ]}>
-              <Text style={styles.statusText}>
-                {request.status === 'pending' ? '⏳' : 
-                 request.status === 'accepted' ? '✅' : '❌'} {request.status.toUpperCase()}
+          {filteredRequests.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>
+                {role && role.toLowerCase() === "mentor" ? "📬" : "🤝"}
+              </Text>
+              <Text style={styles.emptyTitle}>
+                {role && role.toLowerCase() === "mentor"
+                  ? "No requests yet"
+                  : "No mentors yet"}
+              </Text>
+              <Text style={styles.emptyDescription}>
+                {role && role.toLowerCase() === "mentor"
+                  ? "When students request mentorship, they'll appear here."
+                  : "When mentors accept your requests, they'll appear here."}
               </Text>
             </View>
+          ) : (
+            filteredRequests.map((request) => (
+              <Swipeable
+                key={request.id}
+                renderRightActions={() => renderRightActions(request.id)}
+              >
+                <View style={styles.requestCard}>
+                  {/* Status Badge */}
+                  <View style={[
+                    styles.statusBadge,
+                    request.status === 'pending' && styles.pendingBadge,
+                    request.status === 'accepted' && styles.acceptedBadge,
+                    request.status === 'declined' && styles.declinedBadge,
+                  ]}>
+                    <Text style={styles.statusText}>
+                      {request.status === 'pending' ? '⏳' : 
+                        request.status === 'accepted' ? '✅' : '❌'} {request.status.toUpperCase()}
+                    </Text>
+                  </View>
 
-            {/* User Info */}
-            <View style={styles.userSection}>
-              <View style={styles.avatarContainer}>
-                <Image
-                  source={{ uri: `https://avatar.iran.liara.run/public/boy?id=${request.mentee_id || request.mentor_id}` }}
-                  style={styles.avatar}
-                />
-                <View style={[
-                  styles.roleIndicator,
-                  role && role.toLowerCase() === "mentor" ? styles.studentIndicator : styles.mentorIndicator
-                ]}>
-                  <Text style={styles.roleText}>
-                    {role && role.toLowerCase() === "mentor" ? "S" : "M"}
-                  </Text>
-                </View>
-              </View>
-              
-              <View style={styles.userInfo}>
-                <Text style={styles.userName}>
-                  {role && role.toLowerCase() === "mentor"
-                    ? request.mentee?.[0]?.name || 'Unknown Student'
-                    : request.mentor?.[0]?.name || 'Unknown Mentor'}
-                </Text>
-                <Text style={styles.userEmail}>
-                  {role && role.toLowerCase() === "mentor"
-                    ? request.mentee?.[0]?.email || 'No email provided'
-                    : request.mentor?.[0]?.email || 'No email provided'}
-                </Text>
-                <Text style={styles.requestDate}>
-                  {role && role.toLowerCase() === "mentor" ? "📅 Requested" : "📅 Accepted"} on{' '}
-                  {new Date(request.created_at).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </Text>
-              </View>
-            </View>
+                  {/* User Info */}
+                  <View style={styles.userSection}>
+                    <View style={styles.avatarContainer}>
+                      <Image
+                        source={{ uri: `https://avatar.iran.liara.run/public/boy?id=${request.mentee_id || request.mentor_id}` }}
+                        style={styles.avatar}
+                      />
+                      <View style={[
+                        styles.roleIndicator,
+                        role && role.toLowerCase() === "mentor" ? styles.studentIndicator : styles.mentorIndicator
+                      ]}>
+                        <Text style={styles.roleText}>
+                          {role && role.toLowerCase() === "mentor" ? "S" : "M"}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.userInfo}>
+                      <Text style={styles.userName}>
+                        {role && role.toLowerCase() === "mentor"
+                          ? request.mentee?.[0]?.name || 'Unknown Student'
+                          : request.mentor?.[0]?.name || 'Unknown Mentor'}
+                      </Text>
+                      <Text style={styles.userEmail}>
+                        {role && role.toLowerCase() === "mentor"
+                          ? request.mentee?.[0]?.email || 'No email provided'
+                          : request.mentor?.[0]?.email || 'No email provided'}
+                      </Text>
+                      <Text style={styles.requestDate}>
+                        {role && role.toLowerCase() === "mentor" ? "📅 Requested" : "📅 Accepted"} on{' '}
+                        {new Date(request.created_at).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </Text>
+                    </View>
+                  </View>
 
-            {/* Message Section - Only show for mentors */}
-            {request.message && role && role.toLowerCase() === "mentor" && (
-              <View style={styles.messageSection}>
-                <Text style={styles.messageLabel}>💬 Message:</Text>
-                <View style={styles.messageContainer}>
-                  <Text style={styles.messageText}>"{request.message}"</Text>
-                </View>
-              </View>
-            )}
+                  {/* Message Section */}
+                  {request.message && role && role.toLowerCase() === "mentor" && (
+                    <View style={styles.messageSection}>
+                      <Text style={styles.messageLabel}>💬 Message:</Text>
+                      <View style={styles.messageContainer}>
+                        <Text style={styles.messageText}>"{request.message}"</Text>
+                      </View>
+                    </View>
+                  )}
 
-            {/* Action Buttons - Updated condition */}
-            {role && role.toLowerCase() === "mentor" && request.status === 'pending' && (
-              <View style={styles.actionButtons}>
-                <View style={styles.buttonContainer}>
-                  <Button
-                    title="❌ Decline"
-                    onPress={() => handleRequestAction(request.id, 'declined')}
-                    color="#EF4444"
-                  />
+                  {/* Action Buttons */}
+                  {role && role.toLowerCase() === "mentor" && request.status === 'pending' && (
+                    <View style={styles.actionButtons}>
+                      <View style={styles.buttonContainer}>
+                        <Button
+                          title="❌ Decline"
+                          onPress={() => handleRequestAction(request.id, 'declined')}
+                          color="#EF4444"
+                        />
+                      </View>
+                      <View style={styles.buttonContainer}>
+                        <Button
+                          title="✅ Accept"
+                          onPress={() => handleRequestAction(request.id, 'accepted')}
+                          color="#10B981"
+                        />
+                      </View>
+                    </View>
+                  )}
                 </View>
-                <View style={styles.buttonContainer}>
-                  <Button
-                    title="✅ Accept"
-                    onPress={() => handleRequestAction(request.id, 'accepted')}
-                    color="#10B981"
-                  />
-                </View>
-              </View>
-            )}
-          </View>
-        ))
-      )}
-    </ScrollView>
+              </Swipeable>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    </ImageBackground>
   );
 }
 
-// ...existing styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    marginTop: '5%'
+    paddingTop: 70,
+    backgroundColor: 'transparent', // changed from solid color to transparent for background image
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 24,
-    backgroundColor: 'white',
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: 'transparent',
   },
   headerTitle: {
     fontSize: 28,
@@ -511,6 +458,20 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 4,
     fontFamily: 'OpenSans-Regular',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
+  },
+  searchInput: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    borderWidth: 0.5,
+    borderColor: '##40301ef',
   },
   emptyState: {
     flex: 1,
@@ -552,7 +513,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: '#40301ef',
   },
   statusBadge: {
     position: 'absolute',
@@ -689,7 +650,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#FAF3E0',
   },
 });
 

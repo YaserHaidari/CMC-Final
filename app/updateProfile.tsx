@@ -429,6 +429,82 @@ export default function UpdateProfile() {
         }
     };
 
+    async function handleAvatarPress(): Promise<void> {
+        if (uploading) return;
+
+        try {
+            // Ask permission
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission required', 'Permission to access photos is required to update your avatar.');
+                return;
+            }
+
+            // Let user pick an image
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            // Newer Expo ImagePicker returns an assets array; fall back to legacy result.uri
+            const localUri = (result as any).assets?.[0]?.uri ?? (result as any).uri;
+            if (!localUri || (result as any).cancelled) return;
+
+            setUploading(true);
+
+            // Prepare file info
+            const filename = localUri.split('/').pop() || `avatar_${user?.id ?? Date.now()}`;
+            const match = /\.(\w+)$/.exec(filename);
+            const ext = match ? match[1].toLowerCase() : 'jpg';
+            const contentType =
+                ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+
+            // Fetch the file as blob
+            const response = await fetch(localUri);
+            const blob = await response.blob();
+
+            // Build S3 key and upload
+            const key = `avatars/${user?.id ?? 'anonymous'}/${Date.now()}.${ext}`;
+            const uploadParams = {
+                Bucket: S3_BUCKET,
+                Key: key,
+                Body: blob,
+                ContentType: contentType,
+                ACL: 'public-read',
+            };
+
+            const uploadResult: any = await s3.upload(uploadParams).promise();
+            const s3Url =
+                uploadResult?.Location ??
+                `https://${S3_BUCKET}.s3.${Constants.expoConfig?.extra?.AWS_REGION}.amazonaws.com/${key}`;
+
+            // Update user record in Supabase
+            const identifier = user?.email ?? session?.user?.email;
+            if (identifier) {
+                const { error } = await supabase.from('users').update({ photoURL: s3Url }).eq('email', identifier);
+                if (error) {
+                    console.warn('Failed updating photoURL in DB:', error);
+                    Alert.alert('Error', 'Uploaded image but failed to update profile.');
+                } else {
+                    setImgUri(s3Url);
+                    setUser(prev => (prev ? { ...prev, photoURL: s3Url } : prev));
+                    Alert.alert('Success', 'Profile picture updated.');
+                }
+            } else {
+                // Fallback: still update local state
+                setImgUri(s3Url);
+                Alert.alert('Success', 'Profile picture uploaded (could not update server).');
+            }
+        } catch (err) {
+            console.error('Avatar upload error:', err);
+            Alert.alert('Error', 'Failed to upload avatar. Please try again.');
+        } finally {
+            setUploading(false);
+        }
+    }
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -655,7 +731,183 @@ export default function UpdateProfile() {
 }
 
 const styles = StyleSheet.create({
-    loadingContainer: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  scrollView: {
+    backgroundColor: "white",
+  },
+  profileSection: {
+    width: "100%",
+    padding: 24,
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+  profileAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+  },
+  uploadingIndicator: {
+    position: "absolute",
+    top: 40,
+    left: 40,
+  },
+  formContainer: {
+    paddingHorizontal: 24,
+    width: "100%",
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  input: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    fontSize: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    color: "#111827",
+  },
+  multilineInput: {
+    height: 80,
+    textAlignVertical: "top",
+    paddingTop: 12,
+  },
+  segmentedControl: {
+    marginBottom: 16,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  button: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 12,
+    height: 48,
+  },
+  cancelButton: {
+    backgroundColor: "#e5e7eb",
+    marginRight: 8,
+  },
+  updateButton: {
+    backgroundColor: "#3b82f6",
+    marginLeft: 8,
+  },
+  cancelButtonText: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#374151",
+  },
+  updateButtonText: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "white",
+  },
+  pinSection: {
+    backgroundColor: "white",
+    padding: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 16,
+  },
+  pinInput: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 18,
+    textAlign: "center",
+    color: "#111827",
+    backgroundColor: "#f9fafb",
+    marginBottom: 16,
+  },
+  pinButton: {
+    backgroundColor: "#3b82f6",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  pinButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  deleteSection: {
+    padding: 24,
+    paddingTop: 8,
+  },
+  deleteButton: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#dc2626",
+    borderRadius: 12,
+    height: 48,
+    marginBottom: 32,
+  },
+  deleteButtonText: {
+    fontSize: 18,
+    fontWeight: "500",
+    color: "white",
+  },
+  pickerContainer: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 48,
+    justifyContent: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+  },
+  pickerText: {
+    fontSize: 16,
+    color: "black",
+  },
+  placeholderText: {
+    color: "black",
+  },
+  pickerWrapper: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    maxHeight: 200,
+  },
+  picker: {
+    backgroundColor: "black",
+  },
+  mentorSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+   loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',

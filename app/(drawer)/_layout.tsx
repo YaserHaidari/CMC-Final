@@ -48,7 +48,7 @@ export default function DrawerLayout() {
                 screenOptions={{
                     headerShown: false,
                     drawerStyle: {
-                        backgroundColor: "#f9fafb",
+                        backgroundColor: "#d3c8b2ff",
                         borderTopRightRadius: 24,
                         borderBottomRightRadius: 24,
                         width: 260,
@@ -58,9 +58,9 @@ export default function DrawerLayout() {
                         elevation: 4,
                     },
                     overlayColor: "rgba(211, 211, 211, 0.35)",
-                    drawerActiveTintColor: "#f07e74",
+                    drawerActiveTintColor: "#40301eff",
                     drawerInactiveTintColor: "#222",
-                    drawerActiveBackgroundColor: "#fbeaea",
+                    drawerActiveBackgroundColor: "#827566ff",
                     drawerLabelStyle: {
                         fontSize: 18,
                         fontWeight: "600",
