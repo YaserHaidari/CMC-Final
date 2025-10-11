@@ -216,6 +216,7 @@ export default function HomeScreen() {
   };
 
   return (
+    
     <View className="flex-1 bg-stone-50">
       {/* Top-right blob */}
       <View
@@ -223,7 +224,7 @@ export default function HomeScreen() {
           position: "absolute",
           width: 350,
           height: 280,
-          backgroundColor: "#e5c97bff",
+          backgroundColor: '#e5c97bff',
           borderTopLeftRadius: 150,
           borderTopRightRadius: 50,
           borderBottomLeftRadius: 50,
@@ -242,7 +243,7 @@ export default function HomeScreen() {
           position: "absolute",
           width: 320,
           height: 260,
-          backgroundColor: "#40301eff",
+          backgroundColor: '#40301eff', // deep sky blue
           borderTopLeftRadius: 100,
           borderTopRightRadius: 150,
           borderBottomLeftRadius: 150,

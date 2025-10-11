@@ -3,10 +3,10 @@ import {
   View,
   Text,
   TouchableOpacity,
+  StyleSheet,
   ScrollView,
   Alert,
   ImageBackground,
-  StyleSheet
 } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
 import { router } from "expo-router";
@@ -316,7 +316,7 @@ export default function Friends() {
       {/* Overlay to lighten the image */}
       <View style={styles.overlay}>
         <ScrollView style={styles.container}>
-          <Text style={styles.header}>My Mentors</Text>
+          <Text style={styles.header}>My Friends</Text>
           {friends.length === 0 ? (
             <Text style={styles.emptyText}>
               No approved mentorship connections yet.

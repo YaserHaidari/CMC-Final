@@ -1,50 +1,109 @@
-# Welcome to your Expo app 👋
+# Cyberfleet: Coffee Meets Careers (CMC)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+### 📌 Summary:
 
-## Get started
+A cross-platform mobile application built with Expo Go that connects industry professionals with university students to foster mentorship opportunities in the Cyber Security industry.
 
-1. Install dependencies
+---
+
+## 🔖 Introduction:
+
+Cyberfleet: Coffee Meets Careers (CMC) was created to bridge the gap between tertiary education and the requirements of the cybersecurity industry.
+
+Our mission is to connect university students with experienced industry professionals, providing them with an opportunity to learn through mentorships and career insights from industry experience. By supporting these connections, Cyberfleet aims to empower the next generation of cybersecurity talents to transition from academic learning to the professional industry.
+
+The application is built as a cross-platform mobile framwork using React Native and Expo, ensuring compatibility with the latest Android operating systems. It leverages Supabase, Firebase, and AWS S3 buckets for secure data handling, authentication, and cloud storage. The implementation ensures reliability, scalability, and security—key components for the Coffee Meets Careers matching application.
+
+---
+
+## ✨ Key Features:
+
+- 📱 Cross-platform Mobile App with React Native and Expo
+
+- 📍 Support Australian Users Only: (source IP address geolocation based)
+
+- 🔐 Account Registration and Secure Authentication
+
+- ☕ Mentor Matching Algorythm 
+
+- 👤 User Profile Management 
+
+- ✉️ Messaging and Communication
+
+- 🔔 Real-Time Notifications 
+
+
+---
+
+## 🛠 Building Tools and Technologies:
+
+**Core Frameworks & Libraries:**
+
+- [React Native](https://reactnative.dev/) 0.79.2)
+
+- [Expo](https://expo.dev/) ^54.0.9)
+
+- [React](https://react.dev/) 19.0.0)
+
+**UI & Styling:**
+
+- [NativeWind](https://www.nativewind.dev/) ^4.1.23)
+
+**Backend & Databases:**
+
+- [Supabase](https://supabase.com/) ^2.49.4) – Database, Auth APIs
+
+- [Firebase](https://firebase.google.com/) ^11.6.0) – Authentication, App Services
+
+- [AWS SDK](https://aws.amazon.com/sdk-for-javascript/) ^2.1692.0) – S3 storage
+
+**Navigation:**
+
+- React Navigation (Bottom Tabs + Drawer + Native Stack)
+
+**Other Tools Used:**
+
+- Async Storage 2.1.2)
+
+- Expo Local Authentication 16.0.5)
+
+- Expo Notifications ^0.31.4)
+
+- React Native Reanimated ~4.1.0)
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites:
+
+- Node.js (v18+) and npm installed
+
+- Expo Go installed on your mobile device (iOS/Android)
+
+- Correct Firebase and Supabase database configuration
+
+- Correct AWS S3 bucket configuration
+
+### Installation and Running Processes:
+
+1. **Clone the repository**  
+   Download or clone this repository onto your local machine using your preferred method (GitHub desktop, Git CLI, etc.).
+
+2. **Install dependencies**  
+   Open a terminal in the project folder and install all required dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Run the project**  
+   Open a terminal in the project folder and run:
    ```bash
-    npx expo start
+   npx expo start
+   # or 
+   npx expo start -c
    ```
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+4. **Open the Expo App on Your Mobile**  
+   Scan the QR code displayed in your terminal using the Expo Go app to connect it with your project — and enjoy exploring the app!

@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { View, Text, Image, ScrollView, Button, Alert, StyleSheet, TextInput, ImageBackground } from "react-native";
+import { View, Text, Image, ScrollView, Button, Alert, StyleSheet, ImageBackground, TextInput } from "react-native";
 import { supabase } from "@/lib/supabase/initiliaze";
 import { Swipeable } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 interface UserInfo {
   name: string;

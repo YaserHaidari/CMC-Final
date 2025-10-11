@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, ActivityIndicator, Alert } from "react-native";
 import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase/initiliaze";
@@ -8,6 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import AWS from "aws-sdk";
 import Constants from "expo-constants";
 import { savePIN, getPIN, deletePIN } from '@/lib/storage';
+
 import AntDesign from "@expo/vector-icons/build/AntDesign";
 
 interface User {
@@ -401,7 +402,7 @@ export default function UpdateProfile() {
     //details navigation
     const handleDetails = (itemName: string) => {
         if (itemName === "Mentor Settings") {
-            router.push("/details"); // route to mentor-specific details page
+            router.push("./details"); // route to mentor-specific details page
         }
     };
     // Handle PIN set/change
@@ -556,7 +557,7 @@ export default function UpdateProfile() {
                             value={newDetail.DOB}
                             onChangeText={text => setNewDetail(prev => ({ ...prev, DOB: text }))}
                             style={styles.input}
-                            placeholder="DD-MM-YYYY"
+                            placeholder="MM-DD-YYYY"
                             placeholderTextColor="#6b7280"
                         />
 
@@ -599,7 +600,7 @@ export default function UpdateProfile() {
                         {/* Mentee-specific button */}
                         {user?.user_type?.toLowerCase() === "mentee" && (
                             <TouchableOpacity
-                                onPress={() => router.dismissTo("/skills")}
+                                onPress={() => router.dismissTo('/skills')}
                                 style={{
                                     marginTop: 18,
                                     backgroundColor: '#faf8efff',
