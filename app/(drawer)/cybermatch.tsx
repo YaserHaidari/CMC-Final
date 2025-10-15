@@ -152,7 +152,7 @@ function CyberMatchScreen() {
         .from('mentors')
         .select('mentorid, user_id, hourly_rate, skills, specialization_roles, experience_level, years_of_experience, max_mentees, current_mentees, availability_hours_per_week, industries, certifications, bio, active')
         .eq('active', true)
-        .limit(10);
+        .limit(5);
 
       if (mentorsError) throw mentorsError;
       if (!mentorsData || mentorsData.length === 0) return [];
@@ -160,11 +160,15 @@ function CyberMatchScreen() {
       const mentorMatches = await Promise.all(mentorsData.map(async (mentor: any) => {
         let mentorUserData: any = {};
         try {
-          const { data: userData } = await supabase
+          const { data: userData, error: userFetchError } = await supabase
             .from('users')
             .select('name, location')
-            .eq('id', mentor.user_id)
+            .eq('auth_user_id', mentor.user_id)
             .single();
+
+          if (userFetchError) {
+            console.error('Error fetching user name for mentor:', userFetchError);
+          }
           
           mentorUserData = userData || {};
         } catch (userError) {
@@ -362,6 +366,19 @@ function CyberMatchScreen() {
       setCurrentMatch(null);
       setCurrentMatchIndex(0);
     }
+  };
+
+  const handlePrev = () => {
+    // If we're already at the first match, inform the user
+    if (currentMatchIndex <= 0) {
+      Alert.alert("Start", "You're viewing the first mentor.");
+      return;
+    }
+
+    const prevIndex = currentMatchIndex - 1;
+    setCurrentMatchIndex(prevIndex);
+    // Update the displayed match to the previous one
+    setCurrentMatch(mentorMatches[prevIndex] || null);
   };
 
   const handleRequestMentorship = async (mentorUserId: string) => {
@@ -1069,8 +1086,7 @@ function CyberMatchScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TouchableOpacity
+                <TouchableOpacity
                     style={{ 
                       flex: 1,
                       backgroundColor: '#FFF7ED',
@@ -1092,6 +1108,30 @@ function CyberMatchScreen() {
                   >
                     <Text style={{ color: '#EA580C', fontWeight: '600', fontSize: 15 }}>
                       📝 Testimonials
+                    </Text>
+                  </TouchableOpacity>
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity
+                    style={{ 
+                      flex: 1,
+                      backgroundColor: currentMatchIndex <= 0 ? '#F1F5F9' : '#FFFFFF',
+                      borderWidth: 2,
+                      borderColor: currentMatchIndex <= 0 ? '#E2E8F0' : '#94A3B8',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      opacity: currentMatchIndex <= 0 ? 0.6 : 1
+                    }}
+                    onPress={handlePrev}
+                    disabled={currentMatchIndex <= 0}
+                  >
+                    <Text style={{ 
+                      color: currentMatchIndex <= 0 ? '#94A3B8' : '#64748B',
+                      fontWeight: '600',
+                      fontSize: 15
+                    }}>
+                      ⬅️ Previous
                     </Text>
                   </TouchableOpacity>
 
