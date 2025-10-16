@@ -1,26 +1,21 @@
-// Import a configured Supabase client instance
-import { supabase } from "../lib/supabase/initiliaze"
+// fetchMentorsAPI.ts
+import { supabase } from "@/lib/supabase/initiliaze";
 
-// Function to fetch mentors from the database
 export const fetchMentors = async (query?: string) => {
+  let request = supabase
+    .from("mentors")
+    .select("*, user:user_id(*)"); // join user info
 
-    let request = supabase
-        .from("users")
-        .select("*")
-        .eq("user_type", "Mentor"); // only get rows where user_type = 'Mentor'
+  if (query && query.trim()) {
+    // search by mentor's user name
+    request = request.ilike("user->name", `%${query}%`);
+  }
 
-    // If a search query is not just empty spaces, it filters to match a mentors name
-    if (query && query.trim()) {
-        request = request.or(`name.ilike.%${query}%`);
-    }
+  const { data, error } = await request;
 
-    // Execute the built request
-    const { data, error } = await request;
+  if (error) {
+    throw new Error(`Error fetching mentors: ${error.message}`);
+  }
 
-    // Handle the potential errors
-    if (error) {
-        throw new Error(`Error fetching mentors: ${error.message}`);
-    }
-
-    return data;
+  return data || [];
 };

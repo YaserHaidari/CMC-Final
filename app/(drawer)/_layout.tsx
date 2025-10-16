@@ -33,7 +33,6 @@ export default function DrawerLayout() {
 
         fetchUserType();
 
-        // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
             fetchUserType();
         });
@@ -42,76 +41,82 @@ export default function DrawerLayout() {
             subscription.unsubscribe();
         };
     }, []);
-    return (
 
-            <Drawer
-                screenOptions={{
-                    headerShown: false,
-                    drawerStyle: {
-                        backgroundColor: "#d3c8b2ff",
-                        borderTopRightRadius: 24,
-                        borderBottomRightRadius: 24,
-                        width: 260,
-                        shadowColor: "#000",
-                        shadowOpacity: 0.08,
-                        shadowRadius: 8,
-                        elevation: 4,
-                    },
-                    overlayColor: "rgba(211, 211, 211, 0.35)",
-                    drawerActiveTintColor: "#40301eff",
-                    drawerInactiveTintColor: "#222",
-                    drawerActiveBackgroundColor: "#827566ff",
-                    drawerLabelStyle: {
-                        fontSize: 18,
-                        fontWeight: "600",
-                        marginLeft: -8,
-                    },
-                    drawerItemStyle: {
-                        borderRadius: 12,
-                        marginVertical: 4,
-                    },
+    return (
+        <Drawer
+            screenOptions={{
+                headerShown: false,
+                drawerStyle: {
+                    backgroundColor: "#d3c8b2ff",
+                    borderTopRightRadius: 24,
+                    borderBottomRightRadius: 24,
+                    width: 260,
+                    shadowColor: "#000",
+                    shadowOpacity: 0.08,
+                    shadowRadius: 8,
+                    elevation: 4,
+                },
+                overlayColor: "rgba(211, 211, 211, 0.35)",
+                drawerActiveTintColor: "#40301eff",
+                drawerInactiveTintColor: "#222",
+                drawerActiveBackgroundColor: "#827566ff",
+                drawerLabelStyle: {
+                    fontSize: 18,
+                    fontWeight: "600",
+                    marginLeft: -8,
+                },
+                drawerItemStyle: {
+                    borderRadius: 12,
+                    marginVertical: 4,
+                },
+            }}
+        >
+            <Drawer.Screen 
+                name="(tabs)"
+                options={{
+                    drawerLabel: "Home Page",
+                    drawerIcon: ({ color, size }) => (
+                        <Feather name="home" size={size} color={color} />
+                    ),
                 }}
-            >
-                <Drawer.Screen 
-                    name="(tabs)"
-                    options={{
-                        drawerLabel: "Home Page",
-                        drawerIcon: ({ color, size }) => (
-                            <Feather name="home" size={size} color={color} />
-                        ),
-                    }}
-                />
-                <Drawer.Screen 
-                    name="findmentors" 
-                    options={{
-                        drawerLabel: "Explore",
-                        drawerIcon: ({ color, size }) => (
-                            <Feather name="search" size={24} color={color} />
-                        ),
-                    }}
-                />
-                <Drawer.Screen 
-                    name="cybermatch" 
-                    options={{
-                        drawerLabel: "Cyber Match",
-                        drawerIcon: ({ color, size }) => (
-                            <Feather name="shield" size={24} color={color} />
-                        ),
-                        // Hide from drawer if user is a mentor
-                        drawerItemStyle: (!loading && userType?.toLowerCase() === "mentor") 
-                            ? { height: 0, overflow: 'hidden', marginVertical: 0 } 
-                            : { borderRadius: 12, marginVertical: 4 },
-                    }}
-                />
-                 <Drawer.Screen 
-                    name="support" 
-                    options={{
-                        drawerLabel: "Support",
-                        drawerIcon: ({ color, size }) => (
-                            <Feather name="help-circle" size={24} color={color} />
-                        ),
-                    }}
-                />
-            </Drawer>
+            />
+
+            {/* Removed findmentors / Explore screen */}
+            {/*
+            <Drawer.Screen 
+                name="findmentors" 
+                options={{
+                    drawerLabel: "Explore",
+                    drawerIcon: ({ color, size }) => (
+                        <Feather name="search" size={24} color={color} />
+                    ),
+                }}
+            />
+            */}
+
+            <Drawer.Screen 
+                name="cybermatch" 
+                options={{
+                    drawerLabel: "Cyber Match",
+                    drawerIcon: ({ color, size }) => (
+                        <Feather name="shield" size={24} color={color} />
+                    ),
+                    // Hide from drawer if user is a mentor
+                    drawerItemStyle: (!loading && userType?.toLowerCase() === "mentor") 
+                        ? { height: 0, overflow: 'hidden', marginVertical: 0 } 
+                        : { borderRadius: 12, marginVertical: 4 },
+                }}
+            />
+
+            <Drawer.Screen 
+                name="support" 
+                options={{
+                    drawerLabel: "Support",
+                    drawerIcon: ({ color, size }) => (
+                        <Feather name="help-circle" size={24} color={color} />
+                    ),
+                }}
+            />
+        </Drawer>
     );
 }
