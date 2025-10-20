@@ -3,11 +3,8 @@ import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase/initiliaze";
 import { useRouter } from "expo-router";
-import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as ImagePicker from "expo-image-picker";
-import AWS from "aws-sdk";
 import Constants from "expo-constants";
-import { savePIN, getPIN, deletePIN } from '@/lib/storage';
 
 import AntDesign from "@expo/vector-icons/build/AntDesign";
 
@@ -55,29 +52,7 @@ export default function UpdateProfile() {
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [showLocationPicker, setShowLocationPicker] = useState(false);
-    const [showExperiencePicker, setShowExperiencePicker] = useState(false);
 
-    // Experience levels for mentors
-    const experienceLevels = ["Mid-level", "Senior", "Expert", "Principal", "Executive"];
-
-    // Common skills for cybersecurity
-    const commonSkills = [
-        "Network Security", "Ethical Hacking", "Penetration Testing", "Risk Assessment",
-        "Incident Response", "Malware Analysis", "Cloud Security", "SIEM", "Vulnerability Assessment",
-        "Cryptography", "Digital Forensics", "Compliance", "Security Architecture", "Threat Intelligence"
-    ];
-
-    // Common industries
-    const commonIndustries = [
-        "Banking & Finance", "Healthcare", "Government", "Technology", "Consulting",
-        "Telecommunications", "Energy", "Retail", "Education", "Manufacturing"
-    ];
-
-    // Teaching styles
-    const teachingStyles = [
-        "Hands-on Practice", "Theoretical Learning", "Project-based", "Mentorship",
-        "Group Discussion", "Case Studies", "Real-world Scenarios", "Interactive Workshops"
-    ];
 
     // Australian cities list
     const australianCities = [
@@ -133,17 +108,10 @@ export default function UpdateProfile() {
     const [imgUri, setImgUri] = useState<string | null>(null);
     const router = useRouter();
 
-    // PIN state
-    const [pin, setPin] = useState("");
-    const [currentPin, setCurrentPin] = useState("");
 
-    // AWS S3 config
-    const s3 = new AWS.S3({
-        accessKeyId: Constants.expoConfig?.extra?.AWS_ACCESS_KEY_ID ?? "",
-        secretAccessKey: Constants.expoConfig?.extra?.AWS_SECRET_ACCESS_KEY ?? "",
-        region: Constants.expoConfig?.extra?.AWS_REGION ?? "",
-    });
-    const S3_BUCKET = Constants.expoConfig?.extra?.AWS_S3_BUCKET_NAME ?? "your-s3-bucket-name";
+    // S3 details (read from Expo config / EAS secrets). Do NOT hardcode keys here.
+    const S3_BUCKET = Constants.expoConfig?.extra?.AWS_S3_BUCKET_NAME ?? "";
+    const AWS_REGION = Constants.expoConfig?.extra?.AWS_REGION ?? "ap-southeast-2";
 
     // Fetch session and user data
     useEffect(() => {
@@ -212,98 +180,10 @@ export default function UpdateProfile() {
             });
         }
     }
+    
+   
+   
 
-    // // Fetch PIN on mount
-    // useEffect(() => {
-    //     async function fetchPin() {
-    //         const storedPin = await getPIN();
-    //         if (storedPin) setCurrentPin(storedPin);
-    //     }
-    //     fetchPin();
-    // }, []);
-
-    // Pick image
-    async function pickImage() {
-        try {
-            const image = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.8,
-            });
-
-            if (!image.canceled) {
-                setImgUri(image.assets[0].uri);
-            }
-        } catch (error) {
-            Alert.alert("Error", "Failed to pick an image.");
-        }
-    }
-
-    // Upload image to S3 and update Supabase
-    async function uploadImage(uri: string): Promise<string | null> {
-        if (!S3_BUCKET || S3_BUCKET === "your-s3-bucket-name") {
-            Alert.alert("Error", "AWS S3 bucket is not configured.");
-            return null;
-        }
-        setUploading(true);
-        try {
-            const response = await fetch(uri);
-            const blob = await response.blob();
-            const fileName = `profile-images/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-
-            const params = {
-                Bucket: S3_BUCKET,
-                Key: fileName,
-                Body: blob,
-                ContentType: blob.type,
-                ACL: 'public-read',
-            };
-
-            const data = await s3.upload(params).promise();
-            return data.Location as string;
-        } catch (error) {
-            Alert.alert("Error", "Image upload failed.");
-            return null;
-        } finally {
-            setUploading(false);
-        }
-    }
-
-    // Handle avatar press
-    async function handleAvatarPress() {
-        try {
-            const image = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.8,
-            });
-
-            if (!image.canceled && image.assets && image.assets[0].uri) {
-                setImgUri(image.assets[0].uri); // for UI preview
-                setUploading(true);
-                const imageUrl = await uploadImage(image.assets[0].uri);
-                if (imageUrl && user) {
-                    const { error } = await supabase
-                        .from("users")
-                        .update({ photoURL: imageUrl })
-                        .eq("email", user.email);
-
-                    if (!error) {
-                        setUser(prev => prev ? { ...prev, photoURL: imageUrl } : prev);
-                        Alert.alert("Success", "Profile photo updated!");
-                    } else {
-                        Alert.alert("Error", "Failed to update profile photo.");
-                    }
-                }
-                setUploading(false);
-            }
-        } catch (error) {
-            setUploading(false);
-            Alert.alert("Error", "Failed to pick or upload image.");
-        }
-    }
 
     // Handle update
     const handleSubmit = async (email: string) => {
@@ -387,13 +267,6 @@ export default function UpdateProfile() {
         }
     };
 
-    // Handle delete
-    const deleteUser = async (email: string) => {
-        const { error } = await supabase.from("users").delete().eq("email", email);
-        if (!error) {
-            router.push("/login");
-        }
-    };
 
     // Handle cancel
     const handleCancel = () => {
@@ -404,17 +277,6 @@ export default function UpdateProfile() {
         if (itemName === "Mentor Settings") {
             router.push("./details"); // route to mentor-specific details page
         }
-    };
-    // Handle PIN set/change
-    const handleSetPin = () => {
-        if (pin.length < 4) {
-            Alert.alert("PIN too short", "Use at least 4 digits");
-            return;
-        }
-        savePIN(pin);
-        setCurrentPin(pin);
-        setPin("");
-        Alert.alert("Success", "Your PIN has been set/changed");
     };
 
     if (loading) {
@@ -430,82 +292,127 @@ export default function UpdateProfile() {
         }
     };
 
-    async function handleAvatarPress(): Promise<void> {
-        if (uploading) return;
+    // ...existing code...
+    // ...existing code...
+async function handleAvatarPress(): Promise<void> {
+    if (uploading) return;
 
+    try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission required', 'Permission to access photos is required to update your avatar.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+
+        const localUri = (result as any).assets?.[0]?.uri ?? (result as any).uri;
+        if (!localUri || (result as any).cancelled) return;
+
+        setUploading(true);
+
+        const filename = localUri.split('/').pop() || `avatar_${user?.id ?? Date.now()}`;
+        const match = /\.(\w+)$/.exec(filename);
+        const ext = match ? match[1].toLowerCase() : 'jpg';
+        const contentType =
+            ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+
+        // React Native / Expo: response.blob() may not exist — use arrayBuffer() and Uint8Array
+        const fileResp = await fetch(localUri);
+        if (!fileResp.ok) throw new Error(`Could not read file: ${fileResp.status}`);
+        const arrayBuffer = await fileResp.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+
+        const key = `avatars/${user?.id ?? 'anonymous'}/${Date.now()}.${ext}`;
+        const s3Url = `https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`;
+
+        // Attempt direct PUT to S3 (only works if bucket policy/CORS allows / not recommended for production)
         try {
-            // Ask permission
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert('Permission required', 'Permission to access photos is required to update your avatar.');
-                return;
-            }
-
-            // Let user pick an image
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.8,
+            const putResponse = await fetch(s3Url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': contentType,
+                },
+                body: uint8, // Uint8Array works as body in RN fetch
             });
 
-            // Newer Expo ImagePicker returns an assets array; fall back to legacy result.uri
-            const localUri = (result as any).assets?.[0]?.uri ?? (result as any).uri;
-            if (!localUri || (result as any).cancelled) return;
+            if (!putResponse.ok) {
+                const bodyText = await putResponse.text().catch(() => '');
+                throw new Error(`S3 PUT failed ${putResponse.status} ${bodyText}`);
+            }
 
-            setUploading(true);
-
-            // Prepare file info
-            const filename = localUri.split('/').pop() || `avatar_${user?.id ?? Date.now()}`;
-            const match = /\.(\w+)$/.exec(filename);
-            const ext = match ? match[1].toLowerCase() : 'jpg';
-            const contentType =
-                ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
-
-            // Fetch the file as blob
-            const response = await fetch(localUri);
-            const blob = await response.blob();
-
-            // Build S3 key and upload
-            const key = `avatars/${user?.id ?? 'anonymous'}/${Date.now()}.${ext}`;
-            const uploadParams = {
-                Bucket: S3_BUCKET,
-                Key: key,
-                Body: blob,
-                ContentType: contentType,
-                ACL: 'public-read',
-            };
-
-            const uploadResult: any = await s3.upload(uploadParams).promise();
-            const s3Url =
-                uploadResult?.Location ??
-                `https://${S3_BUCKET}.s3.${Constants.expoConfig?.extra?.AWS_REGION}.amazonaws.com/${key}`;
-
-            // Update user record in Supabase
             const identifier = user?.email ?? session?.user?.email;
             if (identifier) {
                 const { error } = await supabase.from('users').update({ photoURL: s3Url }).eq('email', identifier);
                 if (error) {
                     console.warn('Failed updating photoURL in DB:', error);
-                    Alert.alert('Error', 'Uploaded image but failed to update profile.');
+                    Alert.alert('Warning', 'Uploaded to S3 but failed to update profile in DB.');
                 } else {
                     setImgUri(s3Url);
                     setUser(prev => (prev ? { ...prev, photoURL: s3Url } : prev));
-                    Alert.alert('Success', 'Profile picture updated.');
+                    Alert.alert('Success', 'Profile picture uploaded to S3.');
                 }
             } else {
-                // Fallback: still update local state
                 setImgUri(s3Url);
-                Alert.alert('Success', 'Profile picture uploaded (could not update server).');
+                Alert.alert('Success', 'Profile picture uploaded to S3 (local only).');
             }
-        } catch (err) {
-            console.error('Avatar upload error:', err);
-            Alert.alert('Error', 'Failed to upload avatar. Please try again.');
-        } finally {
-            setUploading(false);
+            return;
+        } catch (s3Err) {
+            console.warn('S3 upload failed, will try Supabase storage fallback:', s3Err);
         }
-    }
 
+        // Supabase fallback: upload raw Uint8Array (Supabase JS accepts ArrayBuffer/Uint8Array in RN)
+        try {
+            const storageBucket = 'avatars';
+            const uploadPath = key;
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from(storageBucket)
+                .upload(uploadPath, uint8, {
+                    contentType,
+                    upsert: true,
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: publicData } = supabase.storage.from(storageBucket).getPublicUrl(uploadPath);
+            const publicUrl = publicData?.publicUrl ?? '';
+
+            if (!publicUrl) throw new Error('Could not get public URL from Supabase storage.');
+
+            const identifier = user?.email ?? session?.user?.email;
+            if (identifier) {
+                const { error } = await supabase.from('users').update({ photoURL: publicUrl }).eq('email', identifier);
+                if (error) {
+                    console.warn('Failed updating photoURL in DB:', error);
+                    Alert.alert('Warning', 'Uploaded to Supabase storage but failed to update profile in DB.');
+                } else {
+                    setImgUri(publicUrl);
+                    setUser(prev => (prev ? { ...prev, photoURL: publicUrl } : prev));
+                    Alert.alert('Success', 'Profile picture uploaded to Supabase storage (fallback).');
+                }
+            } else {
+                setImgUri(publicUrl);
+                Alert.alert('Success', 'Profile picture uploaded to Supabase storage (local only).');
+            }
+        } catch (fallbackErr) {
+            console.error('Fallback upload failed:', fallbackErr);
+            Alert.alert('Error', 'Failed to upload avatar. Check network, S3 CORS and storage settings.');
+        }
+    } catch (err) {
+        console.error('Avatar upload error:', err);
+        Alert.alert('Error', 'Failed to upload avatar. Please try again.');
+    } finally {
+        setUploading(false);
+    }
+}
+// ...existing code...
+// ...existing code...
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
