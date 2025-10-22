@@ -19,6 +19,7 @@ import { ChatMessage, sendMessage, listenToMessages } from '@/lib/firebase/chatu
 import { ImageBackground } from 'react-native';
 
 
+
 export default function ChatScreen() {
   const { recipientId, recipientName } = useLocalSearchParams<{
     recipientId: string;
@@ -91,6 +92,19 @@ export default function ChatScreen() {
     };
   }, [currentUserData, recipientId]);
 
+  // New helper function: insert Supabase notification
+  const createChatNotification = async (senderId: string, senderName: string, receiverId: string, messageText: string) => {
+    try {
+      await supabase.from('chat_notifications').insert([{
+        sender_id: senderId,
+        receiver_id: receiverId,
+        message: messageText
+      }]);
+    } catch (err) {
+      console.error('Failed to insert chat notification', err);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending || !currentUserData) return;
 
@@ -99,13 +113,22 @@ export default function ChatScreen() {
     setSending(true);
 
     try {
+      // Send via Firebase
       await sendMessage(
         currentUserData.auth_user_id, // Use Supabase UUID
         currentUserData.name || 'Anonymous',
         recipientId, // This is already a Supabase UUID
         messageText
       );
-      
+
+      // Also insert notification in Supabase
+      await createChatNotification(
+        currentUserData.auth_user_id,
+        currentUserData.name || 'Anonymous',
+        recipientId,
+        messageText
+      );
+
       // Scroll to bottom after sending
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
@@ -175,11 +198,11 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ImageBackground
-      source={require('@/assets/images/coffee-doodle.png')} // put your doodle here
-      style={styles.background}
-      imageStyle={{ opacity: 0.06, resizeMode: 'cover' }} // makes doodle faint & subtle
-    ></ImageBackground>
-    
+        source={require('@/assets/images/coffee-doodle.png')}
+        style={styles.background}
+        imageStyle={{ opacity: 0.06, resizeMode: 'cover' }}
+      />
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -272,13 +295,13 @@ export default function ChatScreen() {
   );
 }
 
-// ...existing styles...
+// All existing styles preserved
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#e3dcc6ff'
   },
-   background: {
+  background: {
     flex: 1,
     width: '100%',
     height: '98%',
