@@ -1,10 +1,10 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/initiliaze";
 import { useRouter, useFocusEffect } from "expo-router";
-import AntDesign from '@expo/vector-icons/AntDesign';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Ionicons from "@expo/vector-icons/Ionicons";
+import AntDesign from "@expo/vector-icons/AntDesign";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 interface User {
   id: number;
@@ -36,7 +36,6 @@ export default function ProfileScreen() {
         const authUser = currentSession.data.session.user;
         const userEmail = authUser.email;
 
-        // Fetch user data from users table
         const { data, error } = await supabase
           .from("users")
           .select("*")
@@ -46,22 +45,18 @@ export default function ProfileScreen() {
         if (!error && data && data.length > 0) {
           const userData = data[0];
 
-          // Fetch skills from mentees table
           const { data: menteeData } = await supabase
             .from("mentees")
             .select("skills")
             .eq("user_id", authUser.id)
             .single();
 
-          // Parse skills correctly
           let menteeSkills: string[] = [];
           if (menteeData?.skills) {
             menteeSkills = Array.isArray(menteeData.skills)
               ? menteeData.skills
               : menteeData.skills.replace(/[{}]/g, '').split(',').map((s: string) => s.trim());
           }
-
-          console.log("Fetched mentee skills:", menteeSkills); // ✅ See skills in console
 
           setUser({
             id: userData.id,
@@ -105,7 +100,7 @@ export default function ProfileScreen() {
     };
   }, []);
 
-  // Refresh profile when screen comes into focus
+  // Refresh on focus
   useFocusEffect(
     React.useCallback(() => {
       const refreshProfile = async () => {
@@ -161,167 +156,141 @@ export default function ProfileScreen() {
     }
   };
 
+  // 🎨 Coffee-themed color palette
+  const colors = {
+    background: "#F5E6D3", // latte beige
+    card: "#FFF8F0",       // creamy white
+    accent: "#C59D5F",     // cappuccino gold
+    textDark: "#3E2723",   // espresso brown
+    textLight: "#6D4C41",  // mocha brown
+  };
+
   return (
-    <ScrollView className="flex-1 bg-[#FAF3E0]">
-      <View className='pt-14 pb-8'>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
+      <View className="pt-14 pb-8">
         {loading ? (
           <>
-            <ActivityIndicator className="mt-8" />
-            <Text className="text-center mt-4 text-gray-600">Loading profile...</Text>
+            <ActivityIndicator size="large" color={colors.accent} />
+            <Text className="text-center mt-4" style={{ color: colors.textLight }}>
+              Brewing your profile...
+            </Text>
           </>
         ) : user ? (
           <>
+            {/* ☕ Profile Header */}
             <View className="items-center mt-6 mb-2">
               {user.photoURL ? (
                 <Image
                   source={{ uri: user.photoURL }}
-                  className="w-24 h-24 rounded-full mb-2"
+                  className="w-28 h-28 rounded-full mb-2"
                 />
               ) : (
-                <View className="w-24 h-24 rounded-full bg-gray-300 mb-2 items-center justify-center">
-                  <Ionicons name="person" size={48} color="white" />
+                <View className="w-28 h-28 rounded-full bg-[#BCAAA4] mb-2 items-center justify-center">
+                  <Ionicons name="person" size={54} color="#FFF8F0" />
                 </View>
               )}
-              {/* Name + Role Icon */}
               <View className="flex-row items-center">
-                <Text className="text-2xl font-bold mr-2">{user.name}</Text>
+                <Text style={{ fontSize: 24, fontWeight: "bold", color: colors.textDark, marginRight: 8 }}>
+                  {user.name}
+                </Text>
                 {user.user_type === "mentee" ? (
-                  <Ionicons name="school-outline" size={22} color="#1A73E8" /> // mentor icon
+                  <Ionicons name="school-outline" size={22} color={colors.accent} />
                 ) : (
-                  <Ionicons name="person-outline" size={22} color="#34A853" /> // mentee icon
+                  <Ionicons name="person-outline" size={22} color={colors.accent} />
                 )}
-
               </View>
-              <Text className="text-base text-gray-600 italic">{user.email}</Text>
+              <Text style={{ color: colors.textLight, fontStyle: "italic", marginTop: 4 }}>
+                {user.email}
+              </Text>
             </View>
 
-            <Text className='text-xl font-bold mt-6 ml-6 md:ml-8'>My Details</Text>
-            <View className='items-center mt-2'>
-
-              {/* Bio */}
-              <View className='flex-row items-center p-4 w-11/12 md:w-5/6 rounded-t-lg'
-                style={{
-                  backgroundColor: '#faf8efff', // light peach background
-                  borderWidth: 1,
-                  borderColor: '#40301eff', // soft peach border
-                  shadowColor: "#000",
-                  shadowOpacity: 0.08,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowRadius: 6,
-                  elevation: 2, // Android shadow
-                }}
-              >
-                <Ionicons name='information-circle-outline' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>{user.bio || "No bio"}</Text>
-              </View>
-
-              {/* Skills: Only visible for mentees */}
-              {user.user_type.toLowerCase() === "mentee" && (
-                <View className='flex-row items-center p-4 w-11/12 md:w-5/6 border-t-0'
+            {/* ☕ My Details */}
+            <Text style={{ fontSize: 20, fontWeight: "700", color: colors.textDark, marginTop: 24, marginLeft: 20 }}>
+              My Details
+            </Text>
+            <View className="items-center mt-3">
+              {[
+                {
+                  icon: "information-circle-outline",
+                  label: user.bio || "No bio",
+                },
+                ...(user.user_type.toLowerCase() === "mentee"
+                  ? [{
+                      icon: "star-outline",
+                      label: user.skills?.length
+                        ? user.skills.join(", ")
+                        : "No skills added",
+                    }]
+                  : []),
+                { icon: "calendar-outline", label: user.DOB || "Date of Birth" },
+                { icon: "location-outline", label: user.Location || "Location" },
+              ].map((item, index) => (
+                <View
+                  key={index}
+                  className="flex-row items-center p-4 w-11/12 rounded-2xl mb-3"
                   style={{
-                    backgroundColor: '#faf8efff', // light peach background
-                  borderWidth: 1,
-                  borderColor: '#40301eff', // soft peach border
+                    backgroundColor: colors.card,
+                    borderWidth: 1,
+                    borderColor: colors.accent,
                     shadowColor: "#000",
-                    shadowOpacity: 0.08,
+                    shadowOpacity: 0.1,
                     shadowOffset: { width: 0, height: 2 },
-                    shadowRadius: 6,
-                    elevation: 2, // Android shadow
+                    shadowRadius: 4,
+                    elevation: 2,
                   }}
                 >
-                  <AntDesign name='star' size={24} className='ml-2' color="black" />
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', flexShrink: 1 }}>
-                    {user.skills && user.skills.length > 0 ? (
-                      user.skills.map((skill, index) => (
-                        <Text
-                          key={index}
-                          style={{
-                            marginRight: 24,
-                            marginBottom: 8,
-                            fontSize: 16,
-                            color: '#1f2937',
-                            marginLeft: 16,
-                          }}
-                        >
-                          {skill}
-                        </Text>
-                      ))
-                    ) : (
-                      <Text style={{ color: '#6b7280' }}>No skills added</Text>
-                    )}
-                  </View>
+                  <Ionicons name={item.icon as any} size={24} color={colors.accent} />
+                  <Text style={{ fontSize: 16, color: colors.textDark, marginLeft: 12, flex: 1 }}>
+                    {item.label}
+                  </Text>
                 </View>
-              )}
-
-              {/* DOB */}
-              <View className='flex-row items-center p-4 w-11/12 md:w-5/6 border-t-0'
-                style={{
-                  backgroundColor: '#faf8efff', // light peach background
-                  borderWidth: 1,
-                  borderColor: '#40301eff', // soft peach border
-                  shadowColor: "#000",
-                  shadowOpacity: 0.08,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowRadius: 6,
-                  elevation: 2, // Android shadow
-                }}
-              >
-                <AntDesign name='calendar' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>{user.DOB || "Date of Birth"}</Text>
-              </View>
-
-              {/* Location */}
-              <View className='flex-row items-center p-4 w-11/12 md:w-5/6 rounded-b-lg border-t-0'
-                style={{
-                  backgroundColor: '#faf8efff', // light peach background
-                  borderWidth: 1,
-                  borderColor: '#40301eff',// soft peach border
-                  shadowColor: "#000",
-                  shadowOpacity: 0.08,
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowRadius: 6,
-                  elevation: 2, // Android shadow
-                }}
-              >
-                <Ionicons name='location-outline' size={24} className='ml-2' color="black" />
-                <Text className='text-lg ml-4 flex-1'>{user.Location || "Location"}</Text>
-              </View>
+              ))}
             </View>
-            <Text className='text-xl font-bold mt-6 ml-6 md:ml-8'>Actions</Text>
-            {/* Settings */}
+
+            {/* ☕ Actions */}
+            <Text style={{ fontSize: 20, fontWeight: "700", color: colors.textDark, marginTop: 28, marginLeft: 20 }}>
+              Actions
+            </Text>
+
             <TouchableOpacity
               onPress={() => handlePress("Edit Profile")}
-              className="flex-row items-center m-4 p-5 w-11/12 md:w-5/6 rounded-2xl"
+              className="flex-row items-center m-4 p-5 w-11/12 rounded-2xl"
               style={{
-                backgroundColor: '#faf8efff', // light peach background
-                  borderWidth: 1,
-                  borderColor: '#40301eff', // soft peach border
-                shadowColor: '#000',
-                shadowOpacity: 0.08,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.accent,
+                shadowColor: "#000",
+                shadowOpacity: 0.1,
                 shadowOffset: { width: 0, height: 2 },
-                shadowRadius: 6,
-                elevation: 2, // Android shadow
+                shadowRadius: 4,
+                elevation: 2,
               }}
             >
-              <AntDesign name="setting" size={24} color="#000000ff" />
-              <Text className="text-lg ml-4 flex-1 font-semibold text-gray-800">
-                Settings
+              <AntDesign name="setting" size={24} color={colors.accent} />
+              <Text style={{ fontSize: 16, color: colors.textDark, marginLeft: 12, flex: 1, fontWeight: "600" }}>
+                Edit Profile
               </Text>
-              <AntDesign name="right" size={20} color="#000000ff" />
+              <AntDesign name="right" size={20} color={colors.textLight} />
             </TouchableOpacity>
 
-            {/* Log Out */}
-            <View className='items-center mt-5'>
+            <View className="items-center mt-5">
               <TouchableOpacity
                 onPress={logoutFunction}
-                className='flex-row items-center justify-center mt-1 p-4 w-11/12 md:w-5/6 rounded-lg'
+                className="flex-row items-center justify-center mt-1 p-4 w-11/12 rounded-2xl"
                 style={{
-                  backgroundColor: "#1A237E", // dark blue
+                  backgroundColor: "#6B4F3B",
+                  shadowColor: "#000",
+                  shadowOpacity: 0.2,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowRadius: 5,
                 }}
-                activeOpacity={0.8} // better press effect
+                activeOpacity={0.8}
               >
-                <MaterialIcons name='logout' size={24} color="white" style={{ marginRight: 8 }} />
-                <Text className='text-lg text-white font-semibold'>
+                <MaterialIcons name="logout" size={24} color="#FFF8F0" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 16, color: "#FFF8F0", fontWeight: "600" }}>
                   Log Out
                 </Text>
               </TouchableOpacity>
@@ -329,9 +298,9 @@ export default function ProfileScreen() {
           </>
         ) : (
           <View className="items-center mt-8">
-            <Text className="text-center text-red-500 mb-4">Could not load profile.</Text>
-            <Text className="text-center text-gray-600 mb-4">
-              {session ? 'Logged in but no profile found' : 'No active session'}
+            <Text style={{ color: "red", marginBottom: 4 }}>Could not load profile.</Text>
+            <Text style={{ color: colors.textLight, marginBottom: 10 }}>
+              {session ? "Logged in but no profile found" : "No active session"}
             </Text>
             <TouchableOpacity
               onPress={async () => {
@@ -341,15 +310,10 @@ export default function ProfileScreen() {
                 setSession(currentSession.data.session);
                 setLoading(false);
               }}
-              className="bg-blue-500 px-4 py-2 rounded"
+              className="px-4 py-2 rounded"
+              style={{ backgroundColor: colors.accent }}
             >
-              <Text className="text-white">Retry</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push("/login")}
-              className="mt-4 bg-green-500 px-4 py-2 rounded"
-            >
-              <Text className="text-white">Go to Login</Text>
+              <Text style={{ color: "#FFF8F0" }}>Retry</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -13,6 +13,8 @@ import {
 import loginUser from '@/lib/firebase/loginUser';
 import { useRouter } from "expo-router";
 import { isPinEnabled, saveCurrentUser, saveRememberedUser, getRememberedUser } from "./storage";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 export default function LoginScreen() {
     const [email, setEmail] = useState<string>('');
@@ -22,58 +24,45 @@ export default function LoginScreen() {
     const router = useRouter();
 
     useEffect(() => {
-    async function redirectIfPinEnabled() {
-        const userId = await getCurrentUser(); // get the last logged-in user
-        if (!userId) return; // no user, skip
+        async function redirectIfPinEnabled() {
+            const userId = await getCurrentUser();
+            if (!userId) return;
 
-        const rememberedUser = await getRememberedUser(userId); // pass userId here
-        if (rememberedUser) {
-            // User has PIN enabled, skip login page
-            router.replace("/pin");
+            const rememberedUser = await getRememberedUser(userId);
+            if (rememberedUser) router.replace("/pin");
         }
-    }
-    redirectIfPinEnabled();
-}, []);
+        redirectIfPinEnabled();
+    }, []);
 
-
-
-    // Sanitize email for SecureStore key
     const sanitizeUserId = (email: string) =>
         email.replace(/[^a-zA-Z0-9._-]/g, "_");
+
     async function handleForm() {
-  if (!email || !pwd) {
-    setMessage("Please enter both email and password.");
-    return;
-  }
-  setIsLoading(true);
-  setMessage("");
+        if (!email || !pwd) {
+            setMessage("Please enter both email and password.");
+            return;
+        }
+        setIsLoading(true);
+        setMessage("");
 
-  const result = await loginUser(email, pwd); // Firebase login
-  setIsLoading(false);
+        const result = await loginUser(email, pwd);
+        setIsLoading(false);
 
-  if (result === true) {
-    const userId = sanitizeUserId(email);
+        if (result === true) {
+            const userId = sanitizeUserId(email);
+            await saveCurrentUser(userId);
 
-    // Save current user safely
-    await saveCurrentUser(userId);
-
-    const enabled = await isPinEnabled(userId);
-    if (enabled) {
-      // Store credentials for PIN login
-      await saveRememberedUser(userId, email, pwd);
-
-      // Redirect to PIN screen
-      router.replace("/pin");
-    } else {
-      // Normal login
-      router.replace("/home");
+            const enabled = await isPinEnabled(userId);
+            if (enabled) {
+                await saveRememberedUser(userId, email, pwd);
+                router.replace("/pin");
+            } else {
+                router.replace("/home");
+            }
+        } else {
+            setMessage(result as string);
+        }
     }
-  } else {
-    setMessage(result as string);
-  }
-}
-
-
 
     function navigateToRegister() {
         if (isLoading) return;
@@ -81,42 +70,38 @@ export default function LoginScreen() {
     }
 
     return (
-        <View className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <View className="flex-1" style={{ backgroundColor: '#FAF3E0' }}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
                 className="flex-1"
             >
                 <ScrollView
-                    contentContainerStyle={{
-                        flexGrow: 1,
-                        paddingVertical: 40,
-                        paddingHorizontal: 24
-                    }}
+                    contentContainerStyle={{ flexGrow: 1, paddingVertical: 40, paddingHorizontal: 24 }}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
                     {/* Main Card Container */}
                     <View className="w-full max-w-md mx-auto">
 
-                        {/* Header Section */}
+                        {/* Header */}
                         <View className="items-center mb-6">
-                            {/* Logo/Icon Circle */}
-                            <View className="w-20 h-20 bg-primary rounded-full items-center justify-center mb-4 shadow-md">
+                            <View
+                                className="w-20 h-20 bg-[#6B4F3B] rounded-full items-center justify-center mb-4 shadow-md"
+                            >
                                 <Text className="text-white text-4xl font-bold">☕</Text>
                             </View>
-
-                            <Text className="text-4xl font-bold font-Title text-gray-800 mb-2">
+                            <Text className="text-4xl font-bold text-[#4B2E05] mb-2">
                                 Welcome Back
                             </Text>
-                            <Text className="text-base text-gray-600 font-Menu">
-                                Sign in to continue your journey
+                            <Text className="text-base text-[#7B5E42] text-center">
+                                Sign in to continue your coffee journey
                             </Text>
                         </View>
 
                         {/* White Card */}
                         <View
-                            className="bg-white rounded-3xl p-8 mb-6"
+                            className="bg-[#FFF8F0] rounded-3xl p-8 mb-6"
                             style={{
                                 shadowColor: "#000",
                                 shadowOffset: { width: 0, height: 2 },
@@ -125,17 +110,17 @@ export default function LoginScreen() {
                                 elevation: 3,
                             }}
                         >
-
                             {/* Email Input */}
                             <View className="mb-5">
-                                <Text className="text-xs font-bold font-Menu text-gray-600 mb-2 ml-1 uppercase tracking-wide">
+                                <Text className="text-xs font-bold text-[#4B2E05] mb-2 ml-1 uppercase tracking-wide">
                                     Email Address
                                 </Text>
-                                <View className="bg-gray-50 rounded-2xl border-2 border-gray-100 overflow-hidden">
+                                <View className="flex-row items-center bg-[#FAEBD7] rounded-2xl border border-[#DDB892] overflow-hidden px-3">
+                                    <MaterialIcons name="email" size={22} color="#6B4F3B" />
                                     <TextInput
-                                        className="px-4 py-4 text-base font-Text text-gray-800"
+                                        className="flex-1 px-2 py-4 text-base text-[#4B2E05]"
                                         placeholder="john@example.com"
-                                        placeholderTextColor="#9CA3AF"
+                                        placeholderTextColor="#9C7B5E"
                                         onChangeText={setEmail}
                                         value={email}
                                         keyboardType="email-address"
@@ -147,39 +132,40 @@ export default function LoginScreen() {
 
                             {/* Password Input */}
                             <View className="mb-6">
-                                <Text className="text-xs font-bold font-Menu text-gray-600 mb-2 ml-1 uppercase tracking-wide">
+                                <Text className="text-xs font-bold text-[#4B2E05] mb-2 ml-1 uppercase tracking-wide">
                                     Password
                                 </Text>
-                                <View className="bg-gray-50 rounded-2xl border-2 border-gray-100 overflow-hidden">
+                                <View className="flex-row items-center bg-[#FAEBD7] rounded-2xl border border-[#DDB892] overflow-hidden px-3">
+                                    <Ionicons name="lock-closed-outline" size={22} color="#6B4F3B" />
                                     <TextInput
-                                        className="px-4 py-4 text-base font-Text text-gray-800"
+                                        className="flex-1 px-2 py-4 text-base text-[#4B2E05]"
                                         placeholder="••••••••"
-                                        placeholderTextColor="#9CA3AF"
+                                        placeholderTextColor="#9C7B5E"
                                         onChangeText={setPwd}
                                         value={pwd}
-                                        secureTextEntry={true}
+                                        secureTextEntry
                                         editable={!isLoading}
                                     />
                                 </View>
                             </View>
 
-                            {/* Message Display */}
-                            {message ? (
-                                <View className="mb-5 p-4 bg-red-50 rounded-2xl border-l-4 border-red-500">
-                                    <Text className="text-sm text-red-700 font-medium font-Menu leading-5">
+                            {/* Message */}
+                            {message && (
+                                <View className="mb-5 p-4 bg-[#FDE2E2] rounded-2xl border-l-4 border-[#E06C75]">
+                                    <Text className="text-sm text-[#E06C75] font-medium leading-5">
                                         {message}
                                     </Text>
                                 </View>
-                            ) : null}
+                            )}
 
                             {/* Login Button */}
                             <TouchableOpacity
                                 onPress={handleForm}
                                 disabled={isLoading}
-                                className={`bg-primary rounded-2xl py-4 items-center justify-center mb-4 ${isLoading ? "opacity-60" : ""
-                                    }`}
+                                className={`rounded-2xl py-4 items-center justify-center mb-4 ${isLoading ? "opacity-60" : ""}`}
                                 style={{
-                                    shadowColor: "#16519F",
+                                    backgroundColor: "#6B4F3B",
+                                    shadowColor: "#000",
                                     shadowOffset: { width: 0, height: 2 },
                                     shadowOpacity: 0.2,
                                     shadowRadius: 4,
@@ -189,41 +175,28 @@ export default function LoginScreen() {
                                 {isLoading ? (
                                     <ActivityIndicator color="white" size="small" />
                                 ) : (
-                                    <Text className="text-lg font-bold font-Menu text-white">
-                                        Sign In
-                                    </Text>
+                                    <View className="flex-row items-center">
+                                        <Ionicons name="log-in-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                                        <Text className="text-lg font-bold text-white">Sign In</Text>
+                                    </View>
                                 )}
                             </TouchableOpacity>
-
-                            
-                            {/* <TouchableOpacity
-                                onPress={() => router.replace("/pin")}
-                                disabled={isLoading}
-                                className={`bg-white border-2 border-primary rounded-2xl py-4 items-center justify-center ${isLoading ? "opacity-60" : ""
-                                    }`}
-                            >
-                                <View className="flex-row items-center">
-                                    <Text className="text-base font-bold font-Menu text-primary mr-2">
-                                        🔐 Login with PIN
-                                    </Text>
-                                </View>
-                            </TouchableOpacity> */}
                         </View>
 
                         {/* Bottom Links */}
                         <View className="flex-row justify-center items-center pt-4">
-                            <Text className="text-base text-gray-600 font-Menu">
+                            <Text className="text-base text-[#7B5E42]">
                                 Don't have an account?
                             </Text>
                             <TouchableOpacity onPress={navigateToRegister} disabled={isLoading}>
-                                <Text className="text-base font-bold font-Menu text-primary ml-2">
+                                <Text className="text-base font-bold text-[#6B4F3B] ml-2">
                                     Register
                                 </Text>
                             </TouchableOpacity>
                         </View>
 
                         {/* Privacy Note */}
-                        <Text className="text-xs text-gray-500 text-center mt-8 font-Menu px-6 leading-5">
+                        <Text className="text-xs text-[#7B5E42] text-center mt-8 px-6 leading-5">
                             By signing in, you agree to our Terms & Conditions
                         </Text>
                     </View>

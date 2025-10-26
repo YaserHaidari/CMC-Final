@@ -250,12 +250,6 @@ export default function UpdateProfile() {
                     certifications: mentorProfile.certifications
                 })
                 .eq("user_id", user.id);
-
-            if (mentorError) {
-                console.log('❌ Mentor update failed:', mentorError.message);
-                Alert.alert("Error", `Failed to update mentor profile: ${mentorError.message}`);
-                mentorUpdateSuccess = false;
-            }
         }
 
         if (userUpdateSuccess && mentorUpdateSuccess) {
@@ -419,64 +413,42 @@ async function handleAvatarPress(): Promise<void> {
             keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
             style={styles.container}
         >
-            <ScrollView
-                contentContainerStyle={{ flexGrow: 1 }}
-                keyboardShouldPersistTaps="handled"
-                style={styles.scrollView}
-            >
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+                {/* Avatar Section */}
                 <View style={styles.profileSection}>
                     <TouchableOpacity onPress={handleAvatarPress} disabled={uploading}>
                         <Image
                             style={styles.profileAvatar}
                             source={{ uri: imgUri || user?.photoURL || 'https://avatar.iran.liara.run/public/41' }}
                         />
-                        {uploading && (
-                            <ActivityIndicator
-                                style={styles.uploadingIndicator}
-                                size="large"
-                                color="#3b82f6"
-                            />
-                        )}
+                        {uploading && <ActivityIndicator style={styles.uploadingIndicator} size="large" color="#6B4F3B" />}
                     </TouchableOpacity>
                 </View>
+
                 {user && (
                     <View style={styles.formContainer}>
-                        {/* Common User Fields */}
-                        <Text style={styles.label}>Name</Text>
-                        <TextInput
-                            value={newDetail.Name}
-                            onChangeText={text => setNewDetail(prev => ({ ...prev, Name: text }))}
-                            style={styles.input}
-                            placeholderTextColor="#6b7280"
-                        />
+                        {/* Input Fields with Coffee Theme */}
+                        {[
+                            { label: 'Name', key: 'Name', multiline: false, keyboard: 'default' },
+                            { label: 'Bio', key: 'Bio', multiline: true, keyboard: 'default' },
+                            { label: 'Date of Birth', key: 'DOB', multiline: false, keyboard: 'default', placeholder: 'MM-DD-YYYY' },
+                            { label: 'Email', key: 'Email', multiline: false, keyboard: 'email-address' }
+                        ].map((field, idx) => (
+                            <View key={idx}>
+                                <Text style={styles.label}>{field.label}</Text>
+                                <TextInput
+                                    value={newDetail[field.key as keyof typeof newDetail]}
+                                    onChangeText={text => setNewDetail(prev => ({ ...prev, [field.key]: text }))}
+                                    style={[styles.input, field.multiline && styles.multilineInput]}
+                                    placeholder={field.placeholder || ''}
+                                    placeholderTextColor="#947a5b"
+                                    keyboardType={field.keyboard as any}
+                                    multiline={field.multiline}
+                                />
+                            </View>
+                        ))}
 
-                        <Text style={styles.label}>Bio</Text>
-                        <TextInput
-                            value={newDetail.Bio}
-                            onChangeText={text => setNewDetail(prev => ({ ...prev, Bio: text }))}
-                            style={[styles.input, styles.multilineInput]}
-                            placeholderTextColor="#6b7280"
-                            multiline
-                        />
-
-                        <Text style={styles.label}>Date of Birth</Text>
-                        <TextInput
-                            value={newDetail.DOB}
-                            onChangeText={text => setNewDetail(prev => ({ ...prev, DOB: text }))}
-                            style={styles.input}
-                            placeholder="MM-DD-YYYY"
-                            placeholderTextColor="#6b7280"
-                        />
-
-                        <Text style={styles.label}>Email</Text>
-                        <TextInput
-                            value={newDetail.Email}
-                            onChangeText={text => setNewDetail(prev => ({ ...prev, Email: text }))}
-                            style={styles.input}
-                            keyboardType="email-address"
-                            placeholderTextColor="#6b7280"
-                        />
-
+                        {/* Location Picker */}
                         <Text style={styles.label}>Location</Text>
                         <TouchableOpacity
                             style={styles.pickerContainer}
@@ -486,48 +458,17 @@ async function handleAvatarPress(): Promise<void> {
                                 {newDetail.location || "Select your city"}
                             </Text>
                         </TouchableOpacity>
-
                         {showLocationPicker && (
                             <View style={styles.pickerWrapper}>
                                 <Picker
                                     selectedValue={newDetail.location}
-                                    onValueChange={(itemValue) => {
-                                        setNewDetail(prev => ({ ...prev, location: itemValue }));
-                                        setShowLocationPicker(false);
-                                    }}
+                                    onValueChange={(val) => { setNewDetail(prev => ({ ...prev, location: val })); setShowLocationPicker(false); }}
                                     style={styles.picker}
                                 >
                                     <Picker.Item label="Select your city" value="" />
-                                    {australianCities.map((city, idx) => (
-                                        <Picker.Item key={idx} label={city} value={city} />
-                                    ))}
+                                    {australianCities.map((city, idx) => <Picker.Item key={idx} label={city} value={city} />)}
                                 </Picker>
                             </View>
-                        )}
-                        {/* Mentee-specific button */}
-                        {user?.user_type?.toLowerCase() === "mentee" && (
-                            <TouchableOpacity
-                                onPress={() => router.dismissTo('/skills')}
-                                style={{
-                                    marginTop: 18,
-                                    backgroundColor: '#faf8efff',
-                                    borderRadius: 12,
-                                    paddingHorizontal: 16,
-                                    height: 48,
-                                    marginBottom: 16,
-                                    borderWidth: 1,
-                                    borderColor: '#40301eff',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-
-                                }}
-                            >
-                                <Text
-                                    style={{ color: "#111827", fontSize: 16, fontWeight: "600" }}
-                                >
-                                    Add Skills and Interests
-                                </Text>
-                            </TouchableOpacity>
                         )}
 
                         {/* Action Buttons */}
@@ -540,421 +481,67 @@ async function handleAvatarPress(): Promise<void> {
                             </TouchableOpacity>
                         </View>
 
-                        {/* --- PIN Section --- */}
-                        <View style={{ marginTop: 8 }}>
-                            <TouchableOpacity
-                                onPress={() => handlePress("Security Settings")}
-                                style={{
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    marginTop: 18,
-                                    backgroundColor: '#faf8efff',
-                                    borderRadius: 12,
-                                    marginHorizontal: 0,
-                                    paddingHorizontal: 10,
-                                    height: 48,
-                                    marginBottom: 16,
-                                    borderWidth: 1,
-                                    borderColor: '#40301eff',
-                                    justifyContent: 'center',
-                                }}
-                            >
-                                <AntDesign name="lock" size={24} style={{ marginRight: 8 }} color="black" />
-                                <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#374151" }}>
-                                    Security Settings
-                                </Text>
-                                <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
-                            </TouchableOpacity>
-                        </View>
+                        {/* Security Settings */}
+                        <TouchableOpacity onPress={() => handlePress("Security Settings")} style={styles.settingRow}>
+                            <AntDesign name="lock" size={24} color="#6B4F3B" />
+                            <Text style={styles.settingText}>Security Settings</Text>
+                            <AntDesign name="right" size={20} color="#947a5b" />
+                        </TouchableOpacity>
 
-                        {/* --- Mentor Settings --- */}
-                        {user?.user_type?.toLowerCase() === "mentor" && (
-                            <TouchableOpacity
-                                onPress={() => handleDetails("Mentor Settings")}
-                                style={{
-                                    flexDirection: "row",
-                                    alignItems: "center",
-                                    marginTop: 8,
-                                    backgroundColor: '#faf8efff',
-                                    borderRadius: 12,
-                                    marginHorizontal: 0,
-                                    paddingHorizontal: 10,
-                                    height: 48,
-                                    marginBottom: 16,
-                                    borderWidth: 1,
-                                    borderColor: '#40301eff',
-                                    justifyContent: 'center',
-                                }}
-                            >
-                                <AntDesign name="profile" size={24} style={{ marginRight: 8 }} color="black" />
-                                <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#374151" }}>
-                                    Mentor Settings
-                                </Text>
-                                <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
+                        {/* Mentor Settings */}
+                        {user.user_type.toLowerCase() === "mentor" && (
+                            <TouchableOpacity onPress={() => handleDetails("Mentor Settings")} style={styles.settingRow}>
+                                <AntDesign name="profile" size={24} color="#6B4F3B" />
+                                <Text style={styles.settingText}>Mentor Settings</Text>
+                                <AntDesign name="right" size={20} color="#947a5b" />
                             </TouchableOpacity>
                         )}
-
-                        {/* Close the form container View and the user conditional */}
                     </View>
                 )}
-
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "white",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "white",
-  },
-  scrollView: {
-    backgroundColor: "white",
-  },
-  profileSection: {
-    width: "100%",
-    padding: 24,
-    alignItems: "center",
-    backgroundColor: "white",
-  },
-  profileAvatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-  },
-  uploadingIndicator: {
-    position: "absolute",
-    top: 40,
-    left: 40,
-  },
-  formContainer: {
-    paddingHorizontal: 24,
-    width: "100%",
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#374151",
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  input: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    color: "#111827",
-  },
-  multilineInput: {
-    height: 80,
-    textAlignVertical: "top",
-    paddingTop: 12,
-  },
-  segmentedControl: {
-    marginBottom: 16,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  button: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 12,
-    height: 48,
-  },
-  cancelButton: {
-    backgroundColor: "#e5e7eb",
-    marginRight: 8,
-  },
-  updateButton: {
-    backgroundColor: "#3b82f6",
-    marginLeft: 8,
-  },
-  cancelButtonText: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#374151",
-  },
-  updateButtonText: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "white",
-  },
-  pinSection: {
-    backgroundColor: "white",
-    padding: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 16,
-  },
-  pinInput: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 18,
-    textAlign: "center",
-    color: "#111827",
-    backgroundColor: "#f9fafb",
-    marginBottom: 16,
-  },
-  pinButton: {
-    backgroundColor: "#3b82f6",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  pinButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  deleteSection: {
-    padding: 24,
-    paddingTop: 8,
-  },
-  deleteButton: {
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#dc2626",
-    borderRadius: 12,
-    height: 48,
-    marginBottom: 32,
-  },
-  deleteButtonText: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "white",
-  },
-  pickerContainer: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    justifyContent: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-  },
-  pickerText: {
-    fontSize: 16,
-    color: "black",
-  },
-  placeholderText: {
-    color: "black",
-  },
-  pickerWrapper: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    maxHeight: 200,
-  },
-  picker: {
-    backgroundColor: "black",
-  },
-  mentorSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
-  },
-   loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: "#FAF3E0",
-    },
-    container: {
-        flex: 1,
-        backgroundColor: "#FAF3E0",
-        paddingTop: 20,
-    },
-    scrollView: {
-        backgroundColor: 'transparent',
-    },
-    profileSection: {
-        width: '100%',
-        padding: 24,
-        alignItems: 'center',
-        backgroundColor: "#FAF3E0",
-    },
-    profileAvatar: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        borderWidth: 2,
-        borderColor: '#e5e7eb',
-    },
-    uploadingIndicator: {
-        position: 'absolute',
-        top: 40,
-        left: 40,
-    },
-    formContainer: {
-        paddingHorizontal: 24,
-        width: '100%',
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#374151',
-        marginBottom: 8,
-        marginTop: 8,
-    },
-    input: {
-        backgroundColor: '#faf8efff',
+    container: { flex: 1, backgroundColor: "#FAF3E0" },
+    scrollView: { backgroundColor: "#FAF3E0" },
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FAF3E0" },
+
+    profileSection: { padding: 24, alignItems: "center", backgroundColor: "#FAF3E0" },
+    profileAvatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 2, borderColor: "#e6d6b3" },
+    uploadingIndicator: { position: "absolute", top: 40, left: 40 },
+
+    formContainer: { paddingHorizontal: 24, width: "100%" },
+    label: { fontSize: 16, fontWeight: "600", color: "#4B2E05", marginBottom: 8, marginTop: 8 },
+    input: { backgroundColor: "#f1e8d6ff", borderRadius: 12, paddingHorizontal: 16, height: 48, fontSize: 16, marginBottom: 16, borderWidth: 1, borderColor: "#3d382fff", color: "#4B2E05" },
+    multilineInput: { height: 80, textAlignVertical: "top", paddingTop: 12 },
+
+    pickerContainer: { backgroundColor: "#f1e8d6ff", borderRadius: 12, paddingHorizontal: 16, height: 48, justifyContent: "center", marginBottom: 16, borderWidth: 1, borderColor: "#24221dff" },
+    pickerText: { fontSize: 16, color: "#4B2E05" },
+    placeholderText: { color: "#947a5b" },
+    pickerWrapper: { backgroundColor: "#2b261eff", borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: "#48443bff", maxHeight: 200 },
+    picker: { backgroundColor: "#27221cff", color: "#4B2E05" },
+
+    buttonRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16, marginTop: 8 },
+    button: { flex: 1, justifyContent: "center", alignItems: "center", borderRadius: 12, height: 48 },
+    cancelButton: { backgroundColor: "#e6d6b3", marginRight: 8 },
+    updateButton: { backgroundColor: "#6B4F3B", marginLeft: 8 },
+    cancelButtonText: { fontSize: 18, fontWeight: "500", color: "#4B2E05" },
+    updateButtonText: { fontSize: 18, fontWeight: "500", color: "white" },
+
+    settingRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 12,
+        backgroundColor: "#f1e8d6ff",
         borderRadius: 12,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         height: 48,
-        fontSize: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: '#40301eff',
-        color: '#111827',
-    },
-    multilineInput: {
-        height: 80,
-        textAlignVertical: 'top',
-        paddingTop: 12,
-    },
-    segmentedControl: {
-        marginBottom: 16,
-    },
-    buttonRow: {
-        flexDirection: 'row',
+        borderColor: "#3d3a32ff",
         justifyContent: 'space-between',
-        marginBottom: 16,
-        marginTop: 8,
     },
-    button: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 12,
-        height: 48,
-    },
-    cancelButton: {
-        backgroundColor: '#d3c8b2ff',
-        marginRight: 8,
-    },
-    updateButton: {
-        backgroundColor: '#4f3b2bff',
-        marginLeft: 8,
-    },
-    cancelButtonText: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#374151',
-    },
-    updateButtonText: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: 'white',
-    },
-    pinSection: {
-        backgroundColor: 'white',
-        padding: 24,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: '#111827',
-        marginBottom: 16,
-    },
-    pinInput: {
-        borderWidth: 1,
-        borderColor: '#d1d5db',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 18,
-        textAlign: 'center',
-        color: '#111827',
-        backgroundColor: '#faf8efff',
-        marginBottom: 16,
-    },
-    pinButton: {
-        backgroundColor: '#4f3b2bff',
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    pinButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    deleteSection: {
-        padding: 24,
-        paddingTop: 8,
-    },
-    deleteButton: {
-        width: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#dc2626',
-        borderRadius: 12,
-        height: 48,
-        marginBottom: 32,
-    },
-    deleteButtonText: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: 'white',
-    },
-    pickerContainer: {
-        backgroundColor: '#faf8efff',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        height: 48,
-        justifyContent: 'center',
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#40301eff',
-    },
-    pickerText: {
-        fontSize: 16,
-        color: 'black',
-    },
-    placeholderText: {
-        color: 'black',
-    },
-    pickerWrapper: {
-        backgroundColor: '#faf8efff',
-        borderRadius: 12,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#40301eff',
-        maxHeight: 200,
-    },
-    picker: {
-        backgroundColor: 'black',
-    },
-    mentorSection: {
-        marginTop: 16,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
-    },
+    settingText: { flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#4B2E05" },
 });
