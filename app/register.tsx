@@ -18,6 +18,8 @@ import SegmentedControl from "@react-native-segmented-control/segmented-control"
 import Constants from "expo-constants";
 import AWS from "aws-sdk";
 import { supabase } from "@/lib/supabase/initiliaze";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const { width } = Dimensions.get('window');
 
@@ -35,9 +37,7 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    if (app) {
-      console.log("Firebase initialized (if still used for other parts)");
-    }
+    if (app) console.log("Firebase initialized (if still used for other parts)");
   }, []);
 
   const s3 = new AWS.S3({
@@ -54,11 +54,8 @@ export default function RegisterScreen() {
         aspect: [1, 1],
         quality: 0.8,
       });
-
-      if (!image.canceled) {
-        setImgUri(image.assets[0].uri);
-        setMessage("Image selected successfully!");
-      }
+      if (!image.canceled) setImgUri(image.assets[0].uri);
+      setMessage("Image selected successfully!");
     } catch (error) {
       console.error("Error picking image:", error);
       setMessage("Failed to pick an image.");
@@ -72,7 +69,6 @@ export default function RegisterScreen() {
       const response = await fetch(uri);
       const blob = await response.blob();
       const fileName = `profile-images/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-
       const params = {
         Bucket: Constants.expoConfig?.extra?.AWS_S3_BUCKET_NAME ?? "ap-southeast-2",
         Key: fileName,
@@ -80,7 +76,6 @@ export default function RegisterScreen() {
         ContentType: blob.type,
         ACL: 'public-read',
       };
-
       const data = await s3.upload(params).promise();
       setMessage("Image uploaded successfully!");
       setIsUploading(false);
@@ -105,7 +100,6 @@ export default function RegisterScreen() {
 
     try {
       let imageUrl = null;
-
       if (imgUri) {
         imageUrl = await uploadImage(imgUri);
         if (!imageUrl) {
@@ -116,7 +110,6 @@ export default function RegisterScreen() {
       }
 
       const errorMsg = await createUser(email, pwd, name, imageUrl, userType);
-
       if (errorMsg !== "successful") {
         console.error("Error creating user:", errorMsg);
         if (errorMsg.includes("auth/email-already-in-use") || errorMsg.includes("User already registered")) {
@@ -136,9 +129,7 @@ export default function RegisterScreen() {
         return;
       }
 
-      setMessage(
-        "Registration successful! A verification email has been sent. Please check your inbox (and spam folder)."
-      );
+      setMessage("Registration successful! A verification email has been sent. Please check your inbox (and spam folder).");
       setIsWaitingForVerification(true);
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -162,63 +153,37 @@ export default function RegisterScreen() {
     setIsProcessing(true);
     setMessage("Sending verification email...");
 
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email: email,
-    });
-
-    if (error) {
-      console.error("Error resending verification email:", error);
-      setMessage(`Failed to resend email: ${error}`);
-    } else {
-      setMessage(
-        "Verification email resent successfully! Please check your inbox."
-      );
-    }
+    const { error } = await supabase.auth.resend({ type: "signup", email });
+    if (error) setMessage(`Failed to resend email: ${error}`);
+    else setMessage("Verification email resent successfully! Please check your inbox.");
     setIsProcessing(false);
   }
 
-  function navigaToLogin() {
-    router.replace("/login");
-  }
-
   return (
-    <View className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100">
+    <View className="flex-1" style={{ backgroundColor: '#FAF3E0' }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
         className="flex-1"
       >
         <ScrollView
-          contentContainerStyle={{ 
-            flexGrow: 1,
-            paddingVertical: 40,
-            paddingHorizontal: 24
-          }}
+          contentContainerStyle={{ flexGrow: 1, paddingVertical: 40, paddingHorizontal: 24 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Main Card Container */}
           <View className="w-full max-w-md mx-auto">
-            
-            {/* Header Section */}
+            {/* Header */}
             <View className="items-center mb-6">
-              {/* Logo/Icon Circle */}
-              <View className="w-20 h-20 bg-primary rounded-full items-center justify-center mb-4 shadow-md">
-                <Text className="text-white text-4xl font-bold">🎓</Text>
+              <View className="w-20 h-20 bg-[#6B4F3B] rounded-full items-center justify-center mb-4 shadow-md">
+                <Text className="text-white text-4xl font-bold">☕</Text>
               </View>
-              
-              <Text className="text-4xl font-bold font-Title text-gray-800 mb-2">
-                Join Us Today
-              </Text>
-              <Text className="text-base text-gray-600 font-Menu">
-                Create your account to get started
-              </Text>
+              <Text className="text-4xl font-bold text-[#4B2E05] mb-2">Join Us Today</Text>
+              <Text className="text-base text-[#7B5E42] text-center">Create your coffee account</Text>
             </View>
 
             {/* White Card */}
-            <View 
-              className="bg-white rounded-3xl p-8 mb-6"
+            <View
+              className="bg-[#FFF8F0] rounded-3xl p-8 mb-6"
               style={{
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 2 },
@@ -227,37 +192,31 @@ export default function RegisterScreen() {
                 elevation: 3,
               }}
             >
-              
               {/* User Type Toggle */}
               <View className="mb-6">
-                <Text className="text-sm font-bold font-Menu text-gray-700 mb-3 text-center">
-                  I AM A
-                </Text>
+                <Text className="text-sm font-bold text-[#4B2E05] mb-3 text-center">I AM A</Text>
                 <SegmentedControl
-                  backgroundColor="#F3F4F6"
+                  backgroundColor="#FAEBD7"
                   style={{ height: 48, borderRadius: 24 }}
-                  tintColor="#16519F"
+                  tintColor="#6B4F3B"
                   values={["🎓 Student", "👨‍🏫 Mentor"]}
                   selectedIndex={userType}
-                  onChange={(event) =>
-                    setUsertype(event.nativeEvent.selectedSegmentIndex)
-                  }
+                  onChange={(event) => setUsertype(event.nativeEvent.selectedSegmentIndex)}
                   enabled={!isProcessing && !isWaitingForVerification}
-                  fontStyle={{ color: "#6B7280", fontWeight: '600', fontSize: 14 }}
+                  fontStyle={{ color: "#7B5E42", fontWeight: '600', fontSize: 14 }}
                   activeFontStyle={{ color: "white", fontWeight: '700', fontSize: 14 }}
                 />
               </View>
 
               {/* Name Input */}
               <View className="mb-5">
-                <Text className="text-xs font-bold font-Menu text-gray-600 mb-2 ml-1 uppercase tracking-wide">
-                  Full Name
-                </Text>
-                <View className="bg-gray-50 rounded-2xl border-2 border-gray-100 overflow-hidden">
+                <Text className="text-xs font-bold text-[#4B2E05] mb-2 ml-1 uppercase tracking-wide">Full Name</Text>
+                <View className="flex-row items-center bg-[#FAEBD7] rounded-2xl border border-[#DDB892] overflow-hidden px-3">
+                  <Ionicons name="person-outline" size={22} color="#6B4F3B" />
                   <TextInput
-                    className="px-4 py-4 text-base font-Text text-gray-800"
+                    className="flex-1 px-2 py-4 text-base text-[#4B2E05]"
                     placeholder="John Doe"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor="#9C7B5E"
                     onChangeText={setName}
                     editable={!isProcessing && !isWaitingForVerification}
                   />
@@ -266,14 +225,13 @@ export default function RegisterScreen() {
 
               {/* Email Input */}
               <View className="mb-5">
-                <Text className="text-xs font-bold font-Menu text-gray-600 mb-2 ml-1 uppercase tracking-wide">
-                  Email Address
-                </Text>
-                <View className="bg-gray-50 rounded-2xl border-2 border-gray-100 overflow-hidden">
+                <Text className="text-xs font-bold text-[#4B2E05] mb-2 ml-1 uppercase tracking-wide">Email Address</Text>
+                <View className="flex-row items-center bg-[#FAEBD7] rounded-2xl border border-[#DDB892] overflow-hidden px-3">
+                  <MaterialIcons name="email" size={22} color="#6B4F3B" />
                   <TextInput
-                    className="px-4 py-4 text-base font-Text text-gray-800"
+                    className="flex-1 px-2 py-4 text-base text-[#4B2E05]"
                     placeholder="john@example.com"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor="#9C7B5E"
                     onChangeText={setEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
@@ -284,30 +242,25 @@ export default function RegisterScreen() {
 
               {/* Password Input */}
               <View className="mb-6">
-                <Text className="text-xs font-bold font-Menu text-gray-600 mb-2 ml-1 uppercase tracking-wide">
-                  Password
-                </Text>
-                <View className="bg-gray-50 rounded-2xl border-2 border-gray-100 overflow-hidden">
+                <Text className="text-xs font-bold text-[#4B2E05] mb-2 ml-1 uppercase tracking-wide">Password</Text>
+                <View className="flex-row items-center bg-[#FAEBD7] rounded-2xl border border-[#DDB892] overflow-hidden px-3">
+                  <Ionicons name="lock-closed-outline" size={22} color="#6B4F3B" />
                   <TextInput
-                    className="px-4 py-4 text-base font-Text text-gray-800"
+                    className="flex-1 px-2 py-4 text-base text-[#4B2E05]"
                     placeholder="••••••••"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor="#9C7B5E"
                     onChangeText={setPwd}
-                    secureTextEntry={true}
+                    secureTextEntry
                     editable={!isProcessing && !isWaitingForVerification}
                   />
                 </View>
-                <Text className="text-xs text-gray-500 mt-2 ml-1 font-Menu">
-                  Minimum 6 characters
-                </Text>
+                <Text className="text-xs text-[#7B5E42] mt-2 ml-1">Minimum 6 characters</Text>
               </View>
 
               {/* Message Display */}
               {message ? (
-                <View className="mb-5 p-4 bg-blue-50 rounded-2xl border-l-4 border-blue-500">
-                  <Text className="text-sm text-blue-700 font-medium font-Menu leading-5">
-                    {message}
-                  </Text>
+                <View className="mb-5 p-4 bg-[#FBEFE6] rounded-2xl border-l-4 border-[#E6A66B]">
+                  <Text className="text-sm text-[#6B4F3B] font-medium leading-5">{message}</Text>
                 </View>
               ) : null}
 
@@ -316,11 +269,10 @@ export default function RegisterScreen() {
                 <TouchableOpacity
                   onPress={handleForm}
                   disabled={isProcessing || isUploading}
-                  className={`bg-primary rounded-2xl py-4 items-center justify-center ${
-                    isProcessing || isUploading ? "opacity-60" : ""
-                  }`}
+                  className={`rounded-2xl py-4 items-center justify-center ${isProcessing || isUploading ? "opacity-60" : ""}`}
                   style={{
-                    shadowColor: "#16519F",
+                    backgroundColor: "#6B4F3B",
+                    shadowColor: "#000",
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.2,
                     shadowRadius: 4,
@@ -330,9 +282,10 @@ export default function RegisterScreen() {
                   {isProcessing && !isUploading ? (
                     <ActivityIndicator color="white" size="small" />
                   ) : (
-                    <Text className="text-lg font-bold font-Menu text-white">
-                      Create Account
-                    </Text>
+                    <View className="flex-row items-center">
+                      <Ionicons name="person-add-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                      <Text className="text-lg font-bold text-white">Create Account</Text>
+                    </View>
                   )}
                 </TouchableOpacity>
               ) : (
@@ -340,42 +293,16 @@ export default function RegisterScreen() {
                   <TouchableOpacity
                     onPress={redirectTologin}
                     disabled={isProcessing}
-                    className={`bg-green-500 rounded-2xl py-4 items-center justify-center ${
-                      isProcessing ? "opacity-60" : ""
-                    }`}
-                    style={{
-                      shadowColor: "#10B981",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 3,
-                    }}
+                    className={`bg-[#6B4F3B] rounded-2xl py-4 items-center justify-center ${isProcessing ? "opacity-60" : ""}`}
                   >
-                    {isProcessing ? (
-                      <ActivityIndicator color="white" size="small" />
-                    ) : (
-                        <View className="flex-row items-center mb-4">
-                        <Text className="text-lg font-bold font-Menu text-white mr-2">
-                          ✓ Email Verified
-                        </Text>
-                      </View>
-                    )}
+                    {isProcessing ? <ActivityIndicator color="white" size="small" /> : <Text className="text-lg font-bold text-white">✓ Email Verified</Text>}
                   </TouchableOpacity>
-                  
                   <TouchableOpacity
                     onPress={resendVerificationEmail}
                     disabled={isProcessing}
-                    className={`bg-white border-2 border-blue-500 rounded-2xl py-4 items-center justify-center ${
-                      isProcessing ? "opacity-60" : ""
-                    }`}
+                    className={`bg-white border-2 border-[#6B4F3B] rounded-2xl py-4 items-center justify-center ${isProcessing ? "opacity-60" : ""}`}
                   >
-                    {isProcessing ? (
-                      <ActivityIndicator color="#3B82F6" size="small" />
-                    ) : (
-                      <Text className="text-base font-bold font-Menu text-blue-500">
-                        📧 Resend Email
-                      </Text>
-                    )}
+                    {isProcessing ? <ActivityIndicator color="#6B4F3B" size="small" /> : <Text className="text-base font-bold text-[#6B4F3B]">📧 Resend Email</Text>}
                   </TouchableOpacity>
                 </View>
               )}
@@ -383,18 +310,14 @@ export default function RegisterScreen() {
 
             {/* Bottom Links */}
             <View className="flex-row justify-center items-center pt-4">
-              <Text className="text-base text-gray-600 font-Menu">
-                Already have an account?
-              </Text>
-              <TouchableOpacity onPress={navigaToLogin} disabled={isProcessing}>
-                <Text className="text-base font-bold font-Menu text-primary ml-2">
-                  Sign In
-                </Text>
+              <Text className="text-base text-[#7B5E42]">Already have an account?</Text>
+              <TouchableOpacity onPress={redirectTologin} disabled={isProcessing}>
+                <Text className="text-base font-bold text-[#6B4F3B] ml-2">Sign In</Text>
               </TouchableOpacity>
             </View>
 
             {/* Privacy Note */}
-            <Text className="text-xs text-gray-500 text-center mt-8 font-Menu px-6 leading-5">
+            <Text className="text-xs text-[#7B5E42] text-center mt-8 px-6 leading-5">
               By creating an account, you agree to our Terms & Conditions
             </Text>
           </View>

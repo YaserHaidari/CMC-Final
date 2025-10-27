@@ -9,8 +9,9 @@ import {
   Platform,
   Alert,
 } from "react-native";
-import AntDesign from "@expo/vector-icons/build/AntDesign";
+import AntDesign from "@expo/vector-icons/AntDesign";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 export default function Support() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -18,15 +19,15 @@ export default function Support() {
   const faqs = [
     {
       q: "How do I reset my password?",
-      a: "At the momment the only way to be able to reset your password is by email our team directly so we can send you a link.",
+      a: "At the moment the only way to reset your password is by emailing our team directly so we can send you a link.",
     },
     {
       q: "What is verified mentors?",
-      a: "Verified mentors are users who's ID & skillset have been verified by our team.",
+      a: "Verified mentors are users whose ID & skillset have been verified by our team.",
     },
     {
       q: "How do I change my account email?",
-      a: "Go to Profile → Edit Profile & Change your email address and press Update.",
+      a: "Go to Profile → Edit Profile & change your email address and press Update.",
     },
     {
       q: "How do I delete my account?",
@@ -34,7 +35,7 @@ export default function Support() {
     },
     {
       q: "How do I report abuse or a policy violation?",
-      a: "Please email us about any policy violation",
+      a: "Please email us about any policy violation.",
     },
   ];
 
@@ -49,29 +50,37 @@ export default function Support() {
     );
   };
 
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <SafeAreaView>
-        <Text style={styles.title}>Support</Text>
+        {/* Title */}
+        <Text style={styles.title}>☕ Support</Text>
         <Text style={styles.subtitle}>
-          Browse FAQs or contact support directly. Links are inline and
-          full-width sections are used for clarity.
+          Browse FAQs or contact support directly.
         </Text>
 
+        {/* FAQ Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Frequently asked questions</Text>
+          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
           {faqs.map((f, i) => (
             <View key={i} style={styles.faqItem}>
               <TouchableOpacity
                 onPress={() => setOpenFaq(openFaq === i ? null : i)}
                 style={styles.faqHeader}
               >
-                <Text style={styles.faqQuestion}>{f.q}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Ionicons
+                    name="help-circle-outline"
+                    size={20}
+                    color="#6B4F3B"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.faqQuestion}>{f.q}</Text>
+                </View>
                 <AntDesign
                   name={openFaq === i ? "down" : "right"}
                   size={16}
-                  color="#374151"
+                  color="#6B4F3B"
                 />
               </TouchableOpacity>
               {openFaq === i && <Text style={styles.faqAnswer}>{f.a}</Text>}
@@ -79,20 +88,20 @@ export default function Support() {
           ))}
         </View>
 
+        {/* Contact Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact</Text>
           <View style={styles.contactRow}>
-            <AntDesign
-              name="mail"
-              size={16}
-              color="#2563eb"
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color="#6B4F3B"
               style={{ marginRight: 8 }}
             />
             <TouchableOpacity onPress={openEmail} accessibilityRole="link">
               <Text style={styles.contactLink}>yhaidari99@gmail.com</Text>
             </TouchableOpacity>
           </View>
-
           <Text style={styles.hintText}>
             Response time: typically within 24–48 hours.
           </Text>
@@ -106,17 +115,17 @@ const styles = StyleSheet.create({
   container: {
     paddingVertical: 20,
     paddingHorizontal: 18,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#FAF3E0", // Coffee cream background
     flexGrow: 1,
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#0f172a",
+    color: "#4B2E05", // Dark mocha
     marginBottom: 8,
   },
   subtitle: {
-    color: "#475569",
+    color: "#6B4F3B", // Warm brown
     fontSize: 15,
     marginBottom: 16,
     lineHeight: 20,
@@ -124,12 +133,12 @@ const styles = StyleSheet.create({
   section: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eef2ff",
+    borderBottomColor: "#e6d6b3",
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#0f172a",
+    color: "#4B2E05",
     marginBottom: 10,
   },
   faqItem: { marginBottom: 8 },
@@ -139,20 +148,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
   },
-  faqQuestion: { color: "#0f172a", fontWeight: "600", flex: 1 },
-  faqAnswer: { color: "#475569", paddingTop: 8, lineHeight: 18 },
+  faqQuestion: { color: "#4B2E05", fontWeight: "600", flex: 1 },
+  faqAnswer: {
+    color: "#6B4F3B",
+    paddingTop: 8,
+    lineHeight: 18,
+    backgroundColor: "#fff4e6",
+    padding: 8,
+    borderRadius: 8,
+  },
   contactRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 6,
   },
   contactLink: {
-    color: "#2563eb",
+    color: "#6B4F3B",
     textDecorationLine: "underline",
     fontWeight: "600",
     fontSize: 15,
   },
   hintText: {
-    color: "#64748b",
+    color: "#947a5b",
     marginTop: 12,
     fontSize: 13,
   },
