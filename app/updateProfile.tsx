@@ -3,9 +3,11 @@ import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/lib/supabase/initiliaze";
 import { useRouter } from "expo-router";
+import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as ImagePicker from "expo-image-picker";
+import AWS from "aws-sdk";
 import Constants from "expo-constants";
-
+import { savePIN, getPIN, deletePIN } from '@/lib/storage';
 import AntDesign from "@expo/vector-icons/build/AntDesign";
 
 interface User {
@@ -52,7 +54,29 @@ export default function UpdateProfile() {
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [showLocationPicker, setShowLocationPicker] = useState(false);
+    const [showExperiencePicker, setShowExperiencePicker] = useState(false);
 
+    // Experience levels for mentors
+    const experienceLevels = ["Mid-level", "Senior", "Expert", "Principal", "Executive"];
+
+    // Common skills for cybersecurity
+    const commonSkills = [
+        "Network Security", "Ethical Hacking", "Penetration Testing", "Risk Assessment",
+        "Incident Response", "Malware Analysis", "Cloud Security", "SIEM", "Vulnerability Assessment",
+        "Cryptography", "Digital Forensics", "Compliance", "Security Architecture", "Threat Intelligence"
+    ];
+
+    // Common industries
+    const commonIndustries = [
+        "Banking & Finance", "Healthcare", "Government", "Technology", "Consulting",
+        "Telecommunications", "Energy", "Retail", "Education", "Manufacturing"
+    ];
+
+    // Teaching styles
+    const teachingStyles = [
+        "Hands-on Practice", "Theoretical Learning", "Project-based", "Mentorship",
+        "Group Discussion", "Case Studies", "Real-world Scenarios", "Interactive Workshops"
+    ];
 
     // Australian cities list
     const australianCities = [
@@ -108,10 +132,17 @@ export default function UpdateProfile() {
     const [imgUri, setImgUri] = useState<string | null>(null);
     const router = useRouter();
 
+    // PIN state
+    const [pin, setPin] = useState("");
+    const [currentPin, setCurrentPin] = useState("");
 
-    // S3 details (read from Expo config / EAS secrets). Do NOT hardcode keys here.
-    const S3_BUCKET = Constants.expoConfig?.extra?.AWS_S3_BUCKET_NAME ?? "";
-    const AWS_REGION = Constants.expoConfig?.extra?.AWS_REGION ?? "ap-southeast-2";
+    // AWS S3 config
+    const s3 = new AWS.S3({
+        accessKeyId: Constants.expoConfig?.extra?.AWS_ACCESS_KEY_ID ?? "",
+        secretAccessKey: Constants.expoConfig?.extra?.AWS_SECRET_ACCESS_KEY ?? "",
+        region: Constants.expoConfig?.extra?.AWS_REGION ?? "",
+    });
+    const S3_BUCKET = Constants.expoConfig?.extra?.AWS_S3_BUCKET_NAME ?? "your-s3-bucket-name";
 
     // Fetch session and user data
     useEffect(() => {
@@ -180,10 +211,98 @@ export default function UpdateProfile() {
             });
         }
     }
-    
-   
-   
 
+    // // Fetch PIN on mount
+    // useEffect(() => {
+    //     async function fetchPin() {
+    //         const storedPin = await getPIN();
+    //         if (storedPin) setCurrentPin(storedPin);
+    //     }
+    //     fetchPin();
+    // }, []);
+
+    // Pick image
+    async function pickImage() {
+        try {
+            const image = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!image.canceled) {
+                setImgUri(image.assets[0].uri);
+            }
+        } catch (error) {
+            Alert.alert("Error", "Failed to pick an image.");
+        }
+    }
+
+    // Upload image to S3 and update Supabase
+    async function uploadImage(uri: string): Promise<string | null> {
+        if (!S3_BUCKET || S3_BUCKET === "your-s3-bucket-name") {
+            Alert.alert("Error", "AWS S3 bucket is not configured.");
+            return null;
+        }
+        setUploading(true);
+        try {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            const fileName = `profile-images/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+
+            const params = {
+                Bucket: S3_BUCKET,
+                Key: fileName,
+                Body: blob,
+                ContentType: blob.type,
+                ACL: 'public-read',
+            };
+
+            const data = await s3.upload(params).promise();
+            return data.Location as string;
+        } catch (error) {
+            Alert.alert("Error", "Image upload failed.");
+            return null;
+        } finally {
+            setUploading(false);
+        }
+    }
+
+    // Handle avatar press
+    async function handleAvatarPress() {
+        try {
+            const image = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!image.canceled && image.assets && image.assets[0].uri) {
+                setImgUri(image.assets[0].uri); // for UI preview
+                setUploading(true);
+                const imageUrl = await uploadImage(image.assets[0].uri);
+                if (imageUrl && user) {
+                    const { error } = await supabase
+                        .from("users")
+                        .update({ photoURL: imageUrl })
+                        .eq("email", user.email);
+
+                    if (!error) {
+                        setUser(prev => prev ? { ...prev, photoURL: imageUrl } : prev);
+                        Alert.alert("Success", "Profile photo updated!");
+                    } else {
+                        Alert.alert("Error", "Failed to update profile photo.");
+                    }
+                }
+                setUploading(false);
+            }
+        } catch (error) {
+            setUploading(false);
+            Alert.alert("Error", "Failed to pick or upload image.");
+        }
+    }
 
     // Handle update
     const handleSubmit = async (email: string) => {
@@ -250,6 +369,12 @@ export default function UpdateProfile() {
                     certifications: mentorProfile.certifications
                 })
                 .eq("user_id", user.id);
+
+            if (mentorError) {
+                console.log('❌ Mentor update failed:', mentorError.message);
+                Alert.alert("Error", `Failed to update mentor profile: ${mentorError.message}`);
+                mentorUpdateSuccess = false;
+            }
         }
 
         if (userUpdateSuccess && mentorUpdateSuccess) {
@@ -261,6 +386,13 @@ export default function UpdateProfile() {
         }
     };
 
+    // Handle delete
+    const deleteUser = async (email: string) => {
+        const { error } = await supabase.from("users").delete().eq("email", email);
+        if (!error) {
+            router.push("/login");
+        }
+    };
 
     // Handle cancel
     const handleCancel = () => {
@@ -271,6 +403,17 @@ export default function UpdateProfile() {
         if (itemName === "Mentor Settings") {
             router.push("./details"); // route to mentor-specific details page
         }
+    };
+    // Handle PIN set/change
+    const handleSetPin = () => {
+        if (pin.length < 4) {
+            Alert.alert("PIN too short", "Use at least 4 digits");
+            return;
+        }
+        savePIN(pin);
+        setCurrentPin(pin);
+        setPin("");
+        Alert.alert("Success", "Your PIN has been set/changed");
     };
 
     if (loading) {
@@ -286,169 +429,70 @@ export default function UpdateProfile() {
         }
     };
 
-    // ...existing code...
-    // ...existing code...
-async function handleAvatarPress(): Promise<void> {
-    if (uploading) return;
-
-    try {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission required', 'Permission to access photos is required to update your avatar.');
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-
-        const localUri = (result as any).assets?.[0]?.uri ?? (result as any).uri;
-        if (!localUri || (result as any).cancelled) return;
-
-        setUploading(true);
-
-        const filename = localUri.split('/').pop() || `avatar_${user?.id ?? Date.now()}`;
-        const match = /\.(\w+)$/.exec(filename);
-        const ext = match ? match[1].toLowerCase() : 'jpg';
-        const contentType =
-            ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
-
-        // React Native / Expo: response.blob() may not exist — use arrayBuffer() and Uint8Array
-        const fileResp = await fetch(localUri);
-        if (!fileResp.ok) throw new Error(`Could not read file: ${fileResp.status}`);
-        const arrayBuffer = await fileResp.arrayBuffer();
-        const uint8 = new Uint8Array(arrayBuffer);
-
-        const key = `avatars/${user?.id ?? 'anonymous'}/${Date.now()}.${ext}`;
-        const s3Url = `https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`;
-
-        // Attempt direct PUT to S3 (only works if bucket policy/CORS allows / not recommended for production)
-        try {
-            const putResponse = await fetch(s3Url, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': contentType,
-                },
-                body: uint8, // Uint8Array works as body in RN fetch
-            });
-
-            if (!putResponse.ok) {
-                const bodyText = await putResponse.text().catch(() => '');
-                throw new Error(`S3 PUT failed ${putResponse.status} ${bodyText}`);
-            }
-
-            const identifier = user?.email ?? session?.user?.email;
-            if (identifier) {
-                const { error } = await supabase.from('users').update({ photoURL: s3Url }).eq('email', identifier);
-                if (error) {
-                    console.warn('Failed updating photoURL in DB:', error);
-                    Alert.alert('Warning', 'Uploaded to S3 but failed to update profile in DB.');
-                } else {
-                    setImgUri(s3Url);
-                    setUser(prev => (prev ? { ...prev, photoURL: s3Url } : prev));
-                    Alert.alert('Success', 'Profile picture uploaded to S3.');
-                }
-            } else {
-                setImgUri(s3Url);
-                Alert.alert('Success', 'Profile picture uploaded to S3 (local only).');
-            }
-            return;
-        } catch (s3Err) {
-            console.warn('S3 upload failed, will try Supabase storage fallback:', s3Err);
-        }
-
-        // Supabase fallback: upload raw Uint8Array (Supabase JS accepts ArrayBuffer/Uint8Array in RN)
-        try {
-            const storageBucket = 'avatars';
-            const uploadPath = key;
-
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from(storageBucket)
-                .upload(uploadPath, uint8, {
-                    contentType,
-                    upsert: true,
-                });
-
-            if (uploadError) throw uploadError;
-
-            const { data: publicData } = supabase.storage.from(storageBucket).getPublicUrl(uploadPath);
-            const publicUrl = publicData?.publicUrl ?? '';
-
-            if (!publicUrl) throw new Error('Could not get public URL from Supabase storage.');
-
-            const identifier = user?.email ?? session?.user?.email;
-            if (identifier) {
-                const { error } = await supabase.from('users').update({ photoURL: publicUrl }).eq('email', identifier);
-                if (error) {
-                    console.warn('Failed updating photoURL in DB:', error);
-                    Alert.alert('Warning', 'Uploaded to Supabase storage but failed to update profile in DB.');
-                } else {
-                    setImgUri(publicUrl);
-                    setUser(prev => (prev ? { ...prev, photoURL: publicUrl } : prev));
-                    Alert.alert('Success', 'Profile picture uploaded to Supabase storage (fallback).');
-                }
-            } else {
-                setImgUri(publicUrl);
-                Alert.alert('Success', 'Profile picture uploaded to Supabase storage (local only).');
-            }
-        } catch (fallbackErr) {
-            console.error('Fallback upload failed:', fallbackErr);
-            Alert.alert('Error', 'Failed to upload avatar. Check network, S3 CORS and storage settings.');
-        }
-    } catch (err) {
-        console.error('Avatar upload error:', err);
-        Alert.alert('Error', 'Failed to upload avatar. Please try again.');
-    } finally {
-        setUploading(false);
-    }
-}
-// ...existing code...
-// ...existing code...
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
             style={styles.container}
         >
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-                {/* Avatar Section */}
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
+                style={styles.scrollView}
+            >
                 <View style={styles.profileSection}>
                     <TouchableOpacity onPress={handleAvatarPress} disabled={uploading}>
                         <Image
                             style={styles.profileAvatar}
                             source={{ uri: imgUri || user?.photoURL || 'https://avatar.iran.liara.run/public/41' }}
                         />
-                        {uploading && <ActivityIndicator style={styles.uploadingIndicator} size="large" color="#6B4F3B" />}
+                        {uploading && (
+                            <ActivityIndicator
+                                style={styles.uploadingIndicator}
+                                size="large"
+                                color="#3b82f6"
+                            />
+                        )}
                     </TouchableOpacity>
                 </View>
-
                 {user && (
                     <View style={styles.formContainer}>
-                        {/* Input Fields with Coffee Theme */}
-                        {[
-                            { label: 'Name', key: 'Name', multiline: false, keyboard: 'default' },
-                            { label: 'Bio', key: 'Bio', multiline: true, keyboard: 'default' },
-                            { label: 'Date of Birth', key: 'DOB', multiline: false, keyboard: 'default', placeholder: 'MM-DD-YYYY' },
-                            { label: 'Email', key: 'Email', multiline: false, keyboard: 'email-address' }
-                        ].map((field, idx) => (
-                            <View key={idx}>
-                                <Text style={styles.label}>{field.label}</Text>
-                                <TextInput
-                                    value={newDetail[field.key as keyof typeof newDetail]}
-                                    onChangeText={text => setNewDetail(prev => ({ ...prev, [field.key]: text }))}
-                                    style={[styles.input, field.multiline && styles.multilineInput]}
-                                    placeholder={field.placeholder || ''}
-                                    placeholderTextColor="#947a5b"
-                                    keyboardType={field.keyboard as any}
-                                    multiline={field.multiline}
-                                />
-                            </View>
-                        ))}
+                        {/* Common User Fields */}
+                        <Text style={styles.label}>Name</Text>
+                        <TextInput
+                            value={newDetail.Name}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, Name: text }))}
+                            style={styles.input}
+                            placeholderTextColor="#6b7280"
+                        />
 
-                        {/* Location Picker */}
+                        <Text style={styles.label}>Bio</Text>
+                        <TextInput
+                            value={newDetail.Bio}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, Bio: text }))}
+                            style={[styles.input, styles.multilineInput]}
+                            placeholderTextColor="#6b7280"
+                            multiline
+                        />
+
+                        <Text style={styles.label}>Date of Birth</Text>
+                        <TextInput
+                            value={newDetail.DOB}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, DOB: text }))}
+                            style={styles.input}
+                            placeholder="YYYY-MM-DD"
+                            placeholderTextColor="#6b7280"
+                        />
+
+                        <Text style={styles.label}>Email</Text>
+                        <TextInput
+                            value={newDetail.Email}
+                            onChangeText={text => setNewDetail(prev => ({ ...prev, Email: text }))}
+                            style={styles.input}
+                            keyboardType="email-address"
+                            placeholderTextColor="#6b7280"
+                        />
+
                         <Text style={styles.label}>Location</Text>
                         <TouchableOpacity
                             style={styles.pickerContainer}
@@ -458,17 +502,48 @@ async function handleAvatarPress(): Promise<void> {
                                 {newDetail.location || "Select your city"}
                             </Text>
                         </TouchableOpacity>
+
                         {showLocationPicker && (
                             <View style={styles.pickerWrapper}>
                                 <Picker
                                     selectedValue={newDetail.location}
-                                    onValueChange={(val) => { setNewDetail(prev => ({ ...prev, location: val })); setShowLocationPicker(false); }}
+                                    onValueChange={(itemValue) => {
+                                        setNewDetail(prev => ({ ...prev, location: itemValue }));
+                                        setShowLocationPicker(false);
+                                    }}
                                     style={styles.picker}
                                 >
                                     <Picker.Item label="Select your city" value="" />
-                                    {australianCities.map((city, idx) => <Picker.Item key={idx} label={city} value={city} />)}
+                                    {australianCities.map((city, idx) => (
+                                        <Picker.Item key={idx} label={city} value={city} />
+                                    ))}
                                 </Picker>
                             </View>
+                        )}
+                        {/* Mentee-specific button */}
+                        {user?.user_type?.toLowerCase() === "mentee" && (
+                            <TouchableOpacity
+                                onPress={() => router.dismissTo('/skills')}
+                                style={{
+                                    marginTop: 18,
+                                    backgroundColor: '#faf8efff',
+                                    borderRadius: 12,
+                                    paddingHorizontal: 16,
+                                    height: 48,
+                                    marginBottom: 16,
+                                    borderWidth: 1,
+                                    borderColor: '#40301eff',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+
+                                }}
+                            >
+                                <Text
+                                    style={{ color: "#111827", fontSize: 16, fontWeight: "600" }}
+                                >
+                                    Add Skills and Interests
+                                </Text>
+                            </TouchableOpacity>
                         )}
 
                         {/* Action Buttons */}
@@ -481,67 +556,258 @@ async function handleAvatarPress(): Promise<void> {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Security Settings */}
-                        <TouchableOpacity onPress={() => handlePress("Security Settings")} style={styles.settingRow}>
-                            <AntDesign name="lock" size={24} color="#6B4F3B" />
-                            <Text style={styles.settingText}>Security Settings</Text>
-                            <AntDesign name="right" size={20} color="#947a5b" />
-                        </TouchableOpacity>
+                        {/* --- PIN Section --- */}
+                        <View style={{ marginTop: 8 }}>
+                            <TouchableOpacity
+                                onPress={() => handlePress("Security Settings")}
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    marginTop: 18,
+                                    backgroundColor: '#faf8efff',
+                                    borderRadius: 12,
+                                    marginHorizontal: 0,
+                                    paddingHorizontal: 10,
+                                    height: 48,
+                                    marginBottom: 16,
+                                    borderWidth: 1,
+                                    borderColor: '#40301eff',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <AntDesign name="lock" size={24} style={{ marginRight: 8 }} color="black" />
+                                <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#374151" }}>
+                                    Security Settings
+                                </Text>
+                                <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
+                            </TouchableOpacity>
+                        </View>
 
-                        {/* Mentor Settings */}
-                        {user.user_type.toLowerCase() === "mentor" && (
-                            <TouchableOpacity onPress={() => handleDetails("Mentor Settings")} style={styles.settingRow}>
-                                <AntDesign name="profile" size={24} color="#6B4F3B" />
-                                <Text style={styles.settingText}>Mentor Settings</Text>
-                                <AntDesign name="right" size={20} color="#947a5b" />
+                        {/* --- Mentor Settings --- */}
+                        {user?.user_type?.toLowerCase() === "mentor" && (
+                            <TouchableOpacity
+                                onPress={() => handleDetails("Mentor Settings")}
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    marginTop: 8,
+                                    backgroundColor: '#faf8efff',
+                                    borderRadius: 12,
+                                    marginHorizontal: 0,
+                                    paddingHorizontal: 10,
+                                    height: 48,
+                                    marginBottom: 16,
+                                    borderWidth: 1,
+                                    borderColor: '#40301eff',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <AntDesign name="profile" size={24} style={{ marginRight: 8 }} color="black" />
+                                <Text style={{ flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#374151" }}>
+                                    Mentor Settings
+                                </Text>
+                                <AntDesign name="right" size={20} style={{ marginLeft: 'auto' }} color="gray" />
                             </TouchableOpacity>
                         )}
+
+
+                        {/* Delete Account Button - Moved to the end */}
+                        {user && (
+                            <View
+                                style={{
+                                    padding: 24,
+                                    paddingTop: 8,
+                                    marginTop: 16, // added marginTop
+                                }}
+                            >
+                                <TouchableOpacity
+                                    onPress={() => deleteUser(user.email)}
+                                    style={{
+                                        width: '100%',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        backgroundColor: '#1724abff',
+                                        borderRadius: 12,
+                                        height: 48,
+                                        marginBottom: 32,
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            fontSize: 18,
+                                            fontWeight: '500',
+                                            color: 'white',
+                                        }}
+                                    >
+                                        Delete Account
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        {/* Close the form container View and the user conditional */}
                     </View>
                 )}
+
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#FAF3E0" },
-    scrollView: { backgroundColor: "#FAF3E0" },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FAF3E0" },
-
-    profileSection: { padding: 24, alignItems: "center", backgroundColor: "#FAF3E0" },
-    profileAvatar: { width: 120, height: 120, borderRadius: 60, borderWidth: 2, borderColor: "#e6d6b3" },
-    uploadingIndicator: { position: "absolute", top: 40, left: 40 },
-
-    formContainer: { paddingHorizontal: 24, width: "100%" },
-    label: { fontSize: 16, fontWeight: "600", color: "#4B2E05", marginBottom: 8, marginTop: 8 },
-    input: { backgroundColor: "#f1e8d6ff", borderRadius: 12, paddingHorizontal: 16, height: 48, fontSize: 16, marginBottom: 16, borderWidth: 1, borderColor: "#3d382fff", color: "#4B2E05" },
-    multilineInput: { height: 80, textAlignVertical: "top", paddingTop: 12 },
-
-    pickerContainer: { backgroundColor: "#f1e8d6ff", borderRadius: 12, paddingHorizontal: 16, height: 48, justifyContent: "center", marginBottom: 16, borderWidth: 1, borderColor: "#24221dff" },
-    pickerText: { fontSize: 16, color: "#4B2E05" },
-    placeholderText: { color: "#947a5b" },
-    pickerWrapper: { backgroundColor: "#2b261eff", borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: "#48443bff", maxHeight: 200 },
-    picker: { backgroundColor: "#27221cff", color: "#4B2E05" },
-
-    buttonRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16, marginTop: 8 },
-    button: { flex: 1, justifyContent: "center", alignItems: "center", borderRadius: 12, height: 48 },
-    cancelButton: { backgroundColor: "#e6d6b3", marginRight: 8 },
-    updateButton: { backgroundColor: "#6B4F3B", marginLeft: 8 },
-    cancelButtonText: { fontSize: 18, fontWeight: "500", color: "#4B2E05" },
-    updateButtonText: { fontSize: 18, fontWeight: "500", color: "white" },
-
-    settingRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 12,
-        backgroundColor: "#f1e8d6ff",
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: "#FAF3E0",
+    },
+    container: {
+        flex: 1,
+        backgroundColor: "#FAF3E0",
+        paddingTop: 20,
+    },
+    scrollView: {
+        backgroundColor: 'transparent',
+    },
+    profileSection: {
+        width: '100%',
+        padding: 24,
+        alignItems: 'center',
+        backgroundColor: "#FAF3E0",
+    },
+    profileAvatar: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 2,
+        borderColor: '#e5e7eb',
+    },
+    uploadingIndicator: {
+        position: 'absolute',
+        top: 40,
+        left: 40,
+    },
+    formContainer: {
+        paddingHorizontal: 24,
+        width: '100%',
+    },
+    label: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#374151',
+        marginBottom: 8,
+        marginTop: 8,
+    },
+    input: {
+        backgroundColor: '#faf8efff',
         borderRadius: 12,
-        paddingHorizontal: 12,
+        paddingHorizontal: 16,
         height: 48,
+        fontSize: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: "#3d3a32ff",
-        justifyContent: 'space-between',
+        borderColor: '#40301eff',
+        color: '#111827',
     },
-    settingText: { flex: 1, fontSize: 18, fontWeight: "600", marginLeft: 12, color: "#4B2E05" },
+    multilineInput: {
+        height: 80,
+        textAlignVertical: 'top',
+        paddingTop: 12,
+    },
+    segmentedControl: {
+        marginBottom: 16,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+        marginTop: 8,
+    },
+    button: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+        height: 48,
+    },
+    cancelButton: {
+        backgroundColor: '#d3c8b2ff',
+        marginRight: 8,
+    },
+    updateButton: {
+        backgroundColor: '#4f3b2bff',
+        marginLeft: 8,
+    },
+    cancelButtonText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: '#374151',
+    },
+    updateButtonText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: 'white',
+    },
+    pinSection: {
+        backgroundColor: 'white',
+        padding: 24,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#111827',
+        marginBottom: 16,
+    },
+    pinInput: {
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 18,
+        textAlign: 'center',
+        color: '#111827',
+        backgroundColor: '#faf8efff',
+        marginBottom: 16,
+    },
+    pinButton: {
+        backgroundColor: '#4f3b2bff',
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    pinButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    deleteSection: {
+        padding: 24,
+        paddingTop: 8,
+    },
+    deleteButton: {
+        width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#dc2626',
+        borderRadius: 12,
+        height: 48,
+        marginBottom: 32,
+    },
+    deleteButtonText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: 'white',
+    },
+    pickerContainer: { backgroundColor: '#faf8efff', borderRadius: 12, paddingHorizontal: 16, height: 48, justifyContent: "center", marginBottom: 16, borderWidth: 1, borderColor: "#1d1c19ff" },
+    pickerText: { fontSize: 16, color: "#4B2E05" },
+    placeholderText: { color: "#272017ff" },
+    pickerWrapper: { backgroundColor: '#faf8efff', borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: "#e6d6b3", maxHeight: 200 },
+    picker: { backgroundColor: "#5f523dff", color: "#4B2E05" },
+
+    mentorSection: {
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+    },
 });
