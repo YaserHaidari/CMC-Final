@@ -13,14 +13,13 @@ import { supabase } from "@/lib/supabase/initiliaze";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import CustomHeader from "@/components/CustomHeader";
 import { useNavigation } from "@react-navigation/native";
-import { ThumbsUp, ThumbsDown } from "lucide-react-native";
 import { router } from "expo-router";
 
 interface Mentee {
   id: string;
   name: string;
   bio: string;
-  interests: string;
+  interests?: string;
   profile_picture?: string;
   skills: string[];
   current_level?: string;
@@ -45,13 +44,11 @@ function HomeScreen() {
     fetchMentors();
   }, []);
 
-  // Initialize Supabase user
   async function initializeUser() {
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData?.session?.user;
     if (!user) return;
 
-    // Save credentials locally
     const userCredentials = { email: user.email, id: user.id };
     await AsyncStorage.setItem("USERCREDENTIALS", JSON.stringify(userCredentials));
 
@@ -59,7 +56,6 @@ function HomeScreen() {
       setPhotoUrl(user.user_metadata.avatar_url);
     }
 
-    // Check if user is a mentor
     const { data: mentorData } = await supabase
       .from("mentors")
       .select("mentorid")
@@ -70,13 +66,9 @@ function HomeScreen() {
       setIsMentor(true);
       setMentorId(mentorData.mentorid.toString());
       await AsyncStorage.setItem("mentor_id", mentorData.mentorid.toString());
-
-      // Fetch mentees for this mentor
       fetchMenteesForMentor(mentorData.mentorid.toString());
     } else {
       setIsMentor(false);
-
-      // If mentee, get mentee row
       const { data: menteeData, error: menteeError } = await supabase
         .from("mentees")
         .select("menteeid, user_id")
@@ -85,8 +77,6 @@ function HomeScreen() {
 
       if (!menteeError && menteeData) {
         setCurrentMenteeId(menteeData.menteeid);
-
-        // Get user name
         const { data: userData } = await supabase
           .from("users")
           .select("name")
@@ -95,17 +85,13 @@ function HomeScreen() {
 
         const userName = userData?.name || "User";
         setWelcomeMessage(userName);
-      } else {
-        console.log("User is not registered as a mentee:", menteeError?.message);
       }
     }
   }
 
-  // Fetch accepted mentees for a mentor
   const fetchMenteesForMentor = async (currentMentorId: string) => {
     try {
       setLoadingMentees(true);
-
       const { data: acceptedRequests } = await supabase
         .from("mentorship_requests")
         .select("mentee_id")
@@ -121,11 +107,10 @@ function HomeScreen() {
 
       const { data: menteeData } = await supabase
         .from("mentees")
-        .select("menteeid, user_id,skills, current_level")
+        .select("menteeid, user_id, skills, current_level")
         .in("menteeid", menteeIds);
 
       const userIds = menteeData.map((m) => m.user_id);
-
       const { data: userProfiles } = await supabase
         .from("users")
         .select("auth_user_id, name, bio, photoURL")
@@ -153,23 +138,19 @@ function HomeScreen() {
 
   const fetchMentors = async () => {
     try {
-      const { data: mentorsData, error: mentorError } = await supabase
+      const { data: mentorsData } = await supabase
         .from("mentors")
         .select("*")
         .eq("verified", true)
         .eq("active", true);
 
-      if (mentorError) throw mentorError;
       if (!mentorsData) return;
 
       const mentorIds = mentorsData.map((m) => m.user_id);
-
-      const { data: usersData, error: userError } = await supabase
+      const { data: usersData } = await supabase
         .from("users")
         .select("auth_user_id, name, photoURL, location, bio")
         .in("auth_user_id", mentorIds);
-
-      if (userError) throw userError;
 
       const mergedMentors = mentorsData.map((m) => ({
         ...m,
@@ -214,7 +195,9 @@ function HomeScreen() {
       if (newVote === 0) {
         await supabase.from("mentor_votes").delete().eq("mentorid", mentorId).eq("userid", currentMenteeId);
       } else {
-        await supabase.from("mentor_votes").upsert({ mentorid: mentorId, userid: currentMenteeId, vote: newVote }, { onConflict: "mentorid,userid" });
+        await supabase
+          .from("mentor_votes")
+          .upsert({ mentorid: mentorId, userid: currentMenteeId, vote: newVote }, { onConflict: "mentorid,userid" });
       }
 
       const { data: votes } = await supabase.from("mentor_votes").select("vote").eq("mentorid", mentorId);
@@ -234,55 +217,43 @@ function HomeScreen() {
     router.push(`/mentorProfile?mentorId=${mentorId}`);
   };
 
+  const menteeProfile = (menteeId: string) => {
+    router.push(`/menteeProfile?menteeId=${menteeId}`);
+  };
+
   return (
     <View className="flex-1 bg-stone-50">
-      {/* Top-right blob */}
+      {/* background blobs */}
       <View
         style={{
           position: "absolute",
           width: 350,
           height: 280,
           backgroundColor: "#e5c97bff",
-          borderTopLeftRadius: 150,
-          borderTopRightRadius: 50,
-          borderBottomLeftRadius: 50,
-          borderBottomRightRadius: 120,
+          borderRadius: 150,
           top: -60,
           right: -80,
-          zIndex: 0,
           opacity: 0.3,
           transform: [{ rotate: "30deg" }],
         }}
       />
-      {/* Bottom-left blob */}
       <View
         style={{
           position: "absolute",
           width: 320,
           height: 260,
           backgroundColor: "#40301eff",
-          borderTopLeftRadius: 100,
-          borderTopRightRadius: 150,
-          borderBottomLeftRadius: 150,
-          borderBottomRightRadius: 50,
+          borderRadius: 150,
           bottom: -50,
           left: -70,
-          zIndex: 0,
           opacity: 0.3,
           transform: [{ rotate: "-25deg" }],
         }}
       />
 
-      <ScrollView
-        key={`home-scroll-${currentMenteeId || "guest"}`}
-        className="flex-1 pt-5"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ minHeight: "100%", paddingBottom: 10 }}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} className="pt-5">
         <CustomHeader />
-        <Text className="text-4xl font-bold font-Title text-black text-center pt-5">
-          Coffee Meets Careers
-        </Text>
+        <Text className="text-4xl font-bold text-center pt-5 text-black">Coffee Meets Careers</Text>
 
         <View className="mt-4 mx-8 mb-5">
           <TouchableOpacity
@@ -290,14 +261,11 @@ function HomeScreen() {
             onPress={() => navigation.getParent()?.navigate("findmentors")}
           >
             <Ionicons name="search-outline" size={24} color="black" />
-            <Text className="flex-1 ml-2 font-Text text-lg font-normal text-gray-600">
-              "Search for a mentor..."
-            </Text>
+            <Text className="flex-1 ml-2 text-lg text-gray-600">Search for a mentor...</Text>
           </TouchableOpacity>
         </View>
 
-        {/* --- Mentor's accepted mentees section --- */}
-        {isMentor && (
+        {isMentor ? (
           <View className="px-4 mt-6">
             <Text className="text-2xl font-bold mb-4 text-gray-800">Your Current Mentees</Text>
             {loadingMentees ? (
@@ -306,22 +274,17 @@ function HomeScreen() {
               <Text className="text-gray-500">You don’t have any accepted mentees yet.</Text>
             ) : (
               mentees.map((mentee) => (
-                <View
+                <TouchableOpacity
                   key={mentee.id}
+                  onPress={() => menteeProfile(mentee.id)}
                   className="rounded-3xl shadow-lg mb-5 mx-4 overflow-hidden"
                   style={{
-                    backgroundColor: "#fdf6f0", // light coffee cream
+                    backgroundColor: "#fdf6f0",
                     borderWidth: 1,
                     borderColor: "#e0c8b0",
                   }}
                 >
-                  {/* Top section: profile + name + level */}
-                  <View
-                    className="flex-row items-center p-4"
-                    style={{
-                      backgroundColor: "#d4a373", // coffee brown gradient start
-                    }}
-                  >
+                  <View className="flex-row items-center p-4" style={{ backgroundColor: "#d4a373" }}>
                     <Image
                       source={{
                         uri:
@@ -339,7 +302,6 @@ function HomeScreen() {
                     </View>
                   </View>
 
-                  {/* Bottom section: bio + skills */}
                   <View className="p-4 bg-[#fdf6f0]">
                     <Text className="text-sm text-gray-700 mb-2">{mentee.bio}</Text>
                     <View className="flex-row flex-wrap mt-1">
@@ -358,37 +320,32 @@ function HomeScreen() {
                       )}
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
-        )}
-
-        {/* --- Verified Mentors Section --- */}
-        {!isMentor && (
+        ) : (
           <>
-            <Text className="text-lg font-extrabold font-Menu ml-7 mb-4">Verified Mentors</Text>
+            <Text className="text-lg font-extrabold ml-7 mb-4">Verified Mentors</Text>
             {mentors.map((mentor) => (
               <TouchableOpacity
                 key={mentor.mentorid}
                 onPress={() => mentorProfile(mentor.mentorid)}
                 className="rounded-3xl mb-6 mx-5 overflow-hidden shadow-xl"
                 style={{
-                  backgroundColor: "#f3ece5", // light coffee cream
+                  backgroundColor: "#f3ece5",
                   borderWidth: 1,
                   borderColor: "#d1b89f",
                 }}
               >
-                {/* Top section: profile + name + location + bio */}
                 <View
                   className="flex-row p-4 items-center"
                   style={{
-                    backgroundColor: "#937e63ff", // coffee brown top
+                    backgroundColor: "#937e63ff",
                     borderBottomLeftRadius: 25,
                     borderBottomRightRadius: 25,
                   }}
                 >
-                  {/* Profile Image */}
                   {mentor.user?.photoURL ? (
                     <Image
                       source={{ uri: mentor.user.photoURL }}
@@ -401,25 +358,21 @@ function HomeScreen() {
                   )}
 
                   <View className="flex-1">
-                    <Text className="text-lg font-bold text-white">{mentor.user?.name || "Unknown User"}</Text>
-
-                    {/* Location with icon */}
+                    <Text className="text-lg font-bold text-white">
+                      {mentor.user?.name || "Unknown User"}
+                    </Text>
                     {mentor.user?.location && (
                       <View className="flex-row items-center mt-1">
                         <Ionicons name="location-outline" size={16} color="#ffe599" />
                         <Text className="text-sm text-white ml-1">{mentor.user.location}</Text>
                       </View>
                     )}
-
-                    {/* Bio with icon */}
                     <View className="flex-row items-start mt-2">
-                      <Ionicons name="information-circle-outline" size={16} color="#fff" className="mt-0.5" />
+                      <Ionicons name="information-circle-outline" size={16} color="#fff" />
                       <Text className="text-sm text-white ml-2 italic">
                         {mentor.user?.bio?.trim() || "No Bio Added"}
                       </Text>
                     </View>
-
-                    {/* Optional: verified badge */}
                     <View className="flex-row mt-2 items-center">
                       <Ionicons name="checkmark-done-circle" size={16} color="#ffd700" />
                       <Text className="text-xs text-white ml-1">Verified Mentor</Text>
@@ -427,36 +380,55 @@ function HomeScreen() {
                   </View>
                 </View>
 
-                {/* Bottom Section: Votes with coffee icons */}
+                {/* bottom votes section */}
                 <View className="flex-row items-center justify-end p-4 space-x-4">
                   <View className="flex-row items-center space-x-2">
                     <TouchableOpacity
                       className="h-10 w-10 rounded-full items-center justify-center"
                       style={{
-                        backgroundColor: userVotes[mentor.mentorid] === 1 ? "#d1fae5" : "#f3f4f6",
+                        backgroundColor:
+                          userVotes[mentor.mentorid] === 1 ? "#d1fae5" : "#f3f4f6",
                       }}
                       onPress={() => handleVote(mentor.mentorid, 1)}
                     >
-                      <Ionicons name="cafe-outline" size={20} color={userVotes[mentor.mentorid] === 1 ? "green" : "gray"} />
+                      <Ionicons
+                        name="cafe-outline"
+                        size={20}
+                        color={
+                          userVotes[mentor.mentorid] === 1 ? "green" : "gray"
+                        }
+                      />
                     </TouchableOpacity>
-                    <Text className="text-base font-Text">{mentorVotes[mentor.mentorid]?.up || 0}</Text>
+                    <Text className="text-base">
+                      {mentorVotes[mentor.mentorid]?.up || 0}
+                    </Text>
                   </View>
 
                   <View className="flex-row items-center space-x-2 ml-6">
                     <TouchableOpacity
                       className="h-10 w-10 rounded-full items-center justify-center"
                       style={{
-                        backgroundColor: userVotes[mentor.mentorid] === -1 ? "#fee2e2" : "#f3f4f6",
+                        backgroundColor:
+                          userVotes[mentor.mentorid] === -1
+                            ? "#fee2e2"
+                            : "#f3f4f6",
                       }}
                       onPress={() => handleVote(mentor.mentorid, -1)}
                     >
-                      <Ionicons name="cafe-outline" size={20} color={userVotes[mentor.mentorid] === -1 ? "red" : "gray"} />
+                      <Ionicons
+                        name="cafe"
+                        size={20}
+                        color={
+                          userVotes[mentor.mentorid] === -1 ? "red" : "gray"
+                        }
+                      />
                     </TouchableOpacity>
-                    <Text className="text-base font-Text">{mentorVotes[mentor.mentorid]?.down || 0}</Text>
+                    <Text className="text-base">
+                      {mentorVotes[mentor.mentorid]?.down || 0}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
-
             ))}
           </>
         )}
